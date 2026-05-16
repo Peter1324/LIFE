@@ -85,9 +85,10 @@ function initZeittracker() {
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Notiz (optional)</div>
         <textarea class="input" id="zNote" placeholder="Erkenntnisse?" rows="2" style="resize:none;margin-bottom:14px"></textarea>
 
-        <div style="display:flex;gap:8px;padding-bottom:8px">
-          <button class="btn btn-ghost" onclick="closeOverlay('zStopSheet')" style="flex:0 0 auto;padding:14px 16px">Abbrechen</button>
-          <button class="btn btn-primary" id="zSaveBtn" onclick="zSaveEntry()" disabled>Speichern ✓</button>
+        <!-- Spacer damit Buttons immer sichtbar -->
+        <div style="display:flex;gap:8px;margin-top:8px;padding-bottom:20px">
+          <button class="btn btn-ghost" onclick="closeOverlay('zStopSheet')" style="flex:0 0 auto;padding:16px 18px;font-size:15px">Abbrechen</button>
+          <button class="btn btn-primary" id="zSaveBtn" onclick="zSaveEntry()" disabled style="font-size:16px;padding:16px">Speichern ✓</button>
         </div>
       </div>
     </div>
