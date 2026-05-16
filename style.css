@@ -105,7 +105,7 @@ body {
   display: flex;
   align-items: center;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  z-index: 1000;
+  z-index: 100;
 }
 
 .nav-btn {
@@ -264,13 +264,15 @@ input[type=range]:disabled::-webkit-slider-thumb {
 .overlay-bg {
   display: none;
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.75);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 2000;
+  z-index: 9000;
   align-items: flex-end;
-  /* Verhindert horizontales Swipen auf dem ganzen Overlay */
   overflow: hidden;
   touch-action: none;
 }
@@ -280,19 +282,17 @@ input[type=range]:disabled::-webkit-slider-thumb {
   width: 100%;
   background: var(--surface);
   border-radius: 20px 20px 0 0;
-  padding: 20px 20px 40px;
+  padding: 20px;
+  padding-bottom: 40px;
   border-top: 1px solid var(--border);
-  /* Nimmt fast den ganzen Bildschirm ein */
-  max-height: 92dvh;
-  height: auto;
-  overflow-y: scroll;
+  max-height: 88dvh;
+  overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overscroll-behavior-y: contain;
-  overscroll-behavior-x: none;
-  /* Buttons immer erreichbar */
-  padding-bottom: max(40px, env(safe-area-inset-bottom, 20px));
+  overscroll-behavior: contain none;
+  position: relative;
+  z-index: 9001;
 }
 
 .sheet-handle {
