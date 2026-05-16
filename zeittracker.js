@@ -46,6 +46,7 @@ function initZeittracker() {
       align-items:flex-end;
       flex-direction:column;
       justify-content:flex-end;
+      padding-bottom:80px;
     ">
       <div id="zStopSheet" style="
         width:100%;
@@ -134,6 +135,7 @@ function initZeittracker() {
       background:rgba(0,0,0,0.8);
       z-index:9999;
       align-items:flex-end;
+      padding-bottom:80px;
     ">
       <div style="
         width:100%;background:#181818;
@@ -169,6 +171,7 @@ function initZeittracker() {
     <div id="zCustomOverlay" style="
       display:none;position:fixed;inset:0;
       background:rgba(0,0,0,0.8);z-index:9999;align-items:flex-end;
+      padding-bottom:80px;
     ">
       <div style="width:100%;background:#181818;border-radius:20px 20px 0 0;border-top:1px solid #282828;padding:20px 16px 40px;box-sizing:border-box">
         <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 16px"></div>
@@ -183,7 +186,7 @@ function initZeittracker() {
     </div>
 
     <!-- ===== ENTRY DETAIL ===== -->
-    <div id="zEntryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;flex-direction:column;justify-content:flex-end">
+    <div id="zEntryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;flex-direction:column;justify-content:flex-end;padding-bottom:80px">
       <!-- Info oben -->
       <div style="width:100%;background:#181818;border-radius:20px 20px 0 0;border-top:1px solid #282828;padding:20px 16px 12px;box-sizing:border-box">
         <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 16px"></div>
