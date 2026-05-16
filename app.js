@@ -65,18 +65,43 @@ function formatDateShort(date) {
 
 // ===== OVERLAY HELPER =====
 function openOverlay(id) {
-  document.getElementById(id)?.classList.add('open');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('open');
+  // Hintergrund einfrieren damit er nicht mitscrollt
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
 }
+
 function closeOverlay(id) {
-  document.getElementById(id)?.classList.remove('open');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('open');
+  // Hintergrund wieder freigeben wenn kein Overlay mehr offen
+  const anyOpen = document.querySelector('.overlay-bg.open');
+  if (!anyOpen) {
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+  }
 }
 
 // Overlay schließen wenn man daneben tippt
 document.addEventListener('click', e => {
   if (e.target.classList.contains('overlay-bg')) {
-    e.target.classList.remove('open');
+    closeOverlay(e.target.id);
   }
 });
+
+// Verhindert horizontales Swipen auf dem ganzen Dokument
+document.addEventListener('touchstart', e => {
+  if (document.querySelector('.overlay-bg.open')) {
+    // Wenn Sheet offen: nur vertikales Scrollen im Sheet erlauben
+    const sheet = e.target.closest('.sheet');
+    if (!sheet) e.preventDefault();
+  }
+}, { passive: false });
 
 // ===== DATUM AUF STARTSCREEN =====
 document.addEventListener('DOMContentLoaded', () => {
