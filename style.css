@@ -281,9 +281,10 @@ input[type=range]:disabled::-webkit-slider-thumb {
   background: var(--surface);
   border-radius: 20px 20px 0 0;
   padding: 20px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  /* Extra Padding unten damit Nav-Bar nichts verdeckt */
+  padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 68px));
   border-top: 1px solid var(--border);
-  max-height: 75vh;
+  max-height: 80vh;
   /* Nur vertikales Scrollen erlaubt */
   overflow-y: auto;
   overflow-x: hidden;
