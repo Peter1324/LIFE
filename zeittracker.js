@@ -16,122 +16,183 @@ const ZEIT_COLORS = {
   'Schlafen':     '#5a6aae',
   'Sport':        '#ae5a8a',
 };
-function zGetColor(name) { return ZEIT_COLORS[name] || '#707070'; }
+function zGetColor(n) { return ZEIT_COLORS[n] || '#707070'; }
 
-// State
-let zActiveEntry = null;      // laufender Eintrag { activity, startTs, withWho }
+let zActiveEntry = null;
 let zTimerInterval = null;
 let zViewDate = new Date();
-let zCurrentView = 'home';    // 'home' | 'day'
+let zCurrentView = 'home';
+let zSelectedActivity = null;
+let zSelectedMood = null;
+let zSheetEntryId = null;
 
 // ===== INIT =====
 function initZeittracker() {
   const content = document.getElementById('screen-zeit')?.querySelector('.screen-content');
   if (!content) return;
 
-  // Laufenden Eintrag aus localStorage laden
   const saved = localStorage.getItem('los_zeit_active');
   if (saved) zActiveEntry = JSON.parse(saved);
 
   content.innerHTML = `
-    <!-- HOME -->
     <div id="zHome"></div>
-
-    <!-- DAY VIEW -->
     <div id="zDay" style="display:none"></div>
 
-    <!-- STOP SHEET — Eintrag abschließen -->
-    <div class="overlay-bg" id="zStopSheet">
-      <div class="sheet">
-        <div class="sheet-handle"></div>
-        <div class="sheet-title" style="margin-bottom:12px">Was hast du gemacht?</div>
+    <!-- ===== STOP SHEET ===== -->
+    <div id="zStopOverlay" style="
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,0.8);
+      z-index:9999;
+      align-items:flex-end;
+    ">
+      <div id="zStopSheet" style="
+        width:100%;
+        background:#181818;
+        border-radius:20px 20px 0 0;
+        border-top:1px solid #282828;
+        max-height:90dvh;
+        overflow-y:auto;
+        overflow-x:hidden;
+        -webkit-overflow-scrolling:touch;
+        touch-action:pan-y;
+        padding:20px 16px 50px;
+        box-sizing:border-box;
+      ">
+        <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 18px"></div>
+        <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:16px">Was hast du gemacht?</div>
 
-        <!-- Aktivität — horizontal scrollbar -->
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Aktivität</div>
-        <div id="zActivityGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        <!-- Aktivität -->
+        <div style="font-size:10px;color:#505050;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Aktivität</div>
+        <div id="zActGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
           ${Object.keys(ZEIT_COLORS).map(name => `
-            <button class="chip" id="zAct_${name.replace('/','_')}" onclick="zSelectActivity('${name}')"
-              style="gap:6px;padding:7px 10px;white-space:nowrap">
-              <span style="width:7px;height:7px;border-radius:50%;background:${zGetColor(name)};flex-shrink:0;display:inline-block"></span>
-              ${name}
+            <button onclick="zSelectAct('${name}')" id="zA_${name.replace(/\//g,'_')}"
+              style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:20px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;white-space:nowrap">
+              <span style="width:7px;height:7px;border-radius:50%;background:${zGetColor(name)};display:inline-block;flex-shrink:0"></span>${name}
             </button>`).join('')}
-          <button class="chip" onclick="zOpenCustomActivity()" style="padding:7px 10px">
+          <button onclick="zOpenCustom()"
+            style="padding:8px 12px;border-radius:20px;border:1px dashed #282828;background:#202020;color:#505050;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer">
             ✏️ Eigene…
           </button>
         </div>
 
         <!-- Mit wem -->
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Mit wem?</div>
-        <div style="display:flex;gap:6px;margin-bottom:12px">
-          <button id="zWithBtn_alleine" onclick="zSetWith('alleine')" class="chip" style="flex:1;justify-content:center;padding:10px">Alleine</button>
-          <button id="zWithBtn_joshua" onclick="zSetWith('joshua')" class="chip" style="flex:1;justify-content:center;padding:10px">Joshua</button>
-          <button id="zWithBtn_andere" onclick="zSetWith('andere')" class="chip" style="flex:1;justify-content:center;padding:10px">Andere…</button>
+        <div style="font-size:10px;color:#505050;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Mit wem?</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button id="zW_alleine" onclick="zSetWith('alleine')"
+            style="flex:1;padding:12px 0;border-radius:10px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer">
+            Alleine
+          </button>
+          <button id="zW_joshua" onclick="zSetWith('joshua')"
+            style="flex:1;padding:12px 0;border-radius:10px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer">
+            Joshua
+          </button>
+          <button id="zW_andere" onclick="zSetWith('andere')"
+            style="flex:1;padding:12px 0;border-radius:10px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer">
+            Andere…
+          </button>
         </div>
-        <input type="text" class="input" id="zWithWho" placeholder="Name eingeben…" style="margin-bottom:12px;display:none">
+        <input type="text" id="zWithWho" placeholder="Name eingeben…"
+          style="display:none;width:100%;background:#202020;border:1px solid #282828;border-radius:10px;padding:12px;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;outline:none;margin-bottom:16px;box-sizing:border-box">
 
-        <!-- Stimmung 1-10 -->
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">
-          Stimmung · <span style="font-style:italic">7 = Erwartung erfüllt</span>
+        <!-- Stimmung -->
+        <div style="font-size:10px;color:#505050;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">
+          Stimmung &nbsp;<span style="font-style:italic;text-transform:none">7 = Erwartung erfüllt</span>
         </div>
-        <div style="display:flex;gap:4px;margin-bottom:12px" id="zMoodBtns">
+        <div style="display:flex;gap:4px;margin-bottom:16px">
           ${[1,2,3,4,5,6,7,8,9,10].map(n => `
-            <button id="zMood${n}" onclick="zSelectMood(${n})"
-              style="flex:1;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.12s">
+            <button id="zM_${n}" onclick="zSelectMood(${n})"
+              style="flex:1;padding:10px 0;border-radius:8px;border:1px solid #282828;background:#202020;color:#505050;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
               ${n}
             </button>`).join('')}
         </div>
 
         <!-- Notiz -->
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Notiz (optional)</div>
-        <textarea class="input" id="zNote" placeholder="Erkenntnisse?" rows="2" style="resize:none;margin-bottom:14px"></textarea>
+        <div style="font-size:10px;color:#505050;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Notiz (optional)</div>
+        <textarea id="zNote" placeholder="Erkenntnisse?"
+          style="width:100%;background:#202020;border:1px solid #282828;border-radius:10px;padding:12px;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:13px;resize:none;outline:none;margin-bottom:20px;box-sizing:border-box"
+          rows="2"></textarea>
 
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
-          <button class="btn btn-primary" id="zSaveBtn" onclick="zSaveEntry()" disabled style="width:100%;padding:18px;font-size:16px">Speichern ✓</button>
-          <button class="btn btn-ghost" onclick="closeOverlay('zStopSheet')" style="width:100%;padding:16px;font-size:15px">Abbrechen</button>
-        </div>
+        <!-- Buttons — untereinander, volle Breite -->
+        <button id="zSaveBtn" onclick="zSaveEntry()" disabled
+          style="width:100%;padding:18px;border-radius:12px;border:none;background:#a8c060;color:#0f0f0f;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:10px;box-sizing:border-box;opacity:0.3">
+          Speichern ✓
+        </button>
+        <button onclick="zCloseStop()"
+          style="width:100%;padding:16px;border-radius:12px;border:1px solid #282828;background:transparent;color:#505050;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          Abbrechen
+        </button>
       </div>
     </div>
 
-    <!-- CUSTOM ACTIVITY -->
-    <div class="overlay-bg" id="zCustomSheet" style="overflow:hidden">
-      <div class="sheet" style="overflow-x:hidden;touch-action:pan-y">
-        <div class="sheet-handle"></div>
-        <div class="sheet-title">Eigene Aktivität</div>
-        <input type="text" class="input" id="zCustomInput" placeholder="Was hast du gemacht?" maxlength="60" style="margin-bottom:12px">
-        <button class="btn btn-primary" onclick="zConfirmCustom()">Übernehmen</button>
-      </div>
-    </div>
-
-    <!-- START SHEET — Aktivität wählen beim Start -->
-    <div class="overlay-bg" id="zStartSheet" style="overflow:hidden">
-      <div class="sheet" style="overflow-x:hidden;touch-action:pan-y">
-        <div class="sheet-handle"></div>
-        <div class="sheet-title">Was machst du jetzt?</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="zStartGrid">
+    <!-- ===== START SHEET ===== -->
+    <div id="zStartOverlay" style="
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,0.8);
+      z-index:9999;
+      align-items:flex-end;
+    ">
+      <div style="
+        width:100%;background:#181818;
+        border-radius:20px 20px 0 0;
+        border-top:1px solid #282828;
+        max-height:80dvh;overflow-y:auto;overflow-x:hidden;
+        -webkit-overflow-scrolling:touch;touch-action:pan-y;
+        padding:20px 16px 40px;box-sizing:border-box;
+      ">
+        <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 18px"></div>
+        <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:16px">Was machst du jetzt?</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
           ${Object.keys(ZEIT_COLORS).map(name => `
-            <button class="chip" onclick="zConfirmStart('${name}')"
-              style="gap:6px;padding:7px 10px;white-space:nowrap">
-              <span style="width:8px;height:8px;border-radius:50%;background:${zGetColor(name)};flex-shrink:0;display:inline-block"></span>
-              ${name}
+            <button onclick="zConfirmStart('${name}')"
+              style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:20px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;white-space:nowrap">
+              <span style="width:7px;height:7px;border-radius:50%;background:${zGetColor(name)};display:inline-block;flex-shrink:0"></span>${name}
             </button>`).join('')}
-          <button class="chip" onclick="zOpenCustomStart()" style="grid-column:1/-1;justify-content:center">
-            ✏️ Eigene Eingabe…
+          <button onclick="zStartCustom()"
+            style="padding:8px 12px;border-radius:20px;border:1px dashed #282828;background:#202020;color:#505050;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer">
+            ✏️ Eigene…
           </button>
         </div>
-        <button class="btn btn-ghost" onclick="closeOverlay('zStartSheet')">Abbrechen</button>
+        <button onclick="zCloseStart()"
+          style="width:100%;padding:14px;border-radius:12px;border:1px solid #282828;background:transparent;color:#505050;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          Abbrechen
+        </button>
       </div>
     </div>
 
-    <!-- ENTRY DETAIL SHEET -->
-    <div class="overlay-bg" id="zEntrySheet" style="overflow:hidden">
-      <div class="sheet" style="overflow-x:hidden;touch-action:pan-y">
-        <div class="sheet-handle"></div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="zEntrySheetTime"></div>
-        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px" id="zEntrySheetTitle"></div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-danger" onclick="zDeleteEntry()">🗑 Löschen</button>
-          <button class="btn btn-ghost" onclick="closeOverlay('zEntrySheet')" style="color:var(--muted)">Schließen</button>
-        </div>
+    <!-- ===== CUSTOM INPUT ===== -->
+    <div id="zCustomOverlay" style="
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,0.8);z-index:9999;align-items:flex-end;
+    ">
+      <div style="width:100%;background:#181818;border-radius:20px 20px 0 0;border-top:1px solid #282828;padding:20px 16px 40px;box-sizing:border-box">
+        <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 16px"></div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:14px">Eigene Aktivität</div>
+        <input type="text" id="zCustomInput" placeholder="Was hast du gemacht?" maxlength="60"
+          style="width:100%;background:#202020;border:1px solid #282828;border-radius:10px;padding:13px;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;outline:none;margin-bottom:12px;box-sizing:border-box">
+        <button onclick="zConfirmCustom()"
+          style="width:100%;padding:16px;border-radius:12px;border:none;background:#a8c060;color:#0f0f0f;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;box-sizing:border-box">
+          Übernehmen
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== ENTRY DETAIL ===== -->
+    <div id="zEntryOverlay" style="
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,0.8);z-index:9999;align-items:flex-end;
+    ">
+      <div style="width:100%;background:#181818;border-radius:20px 20px 0 0;border-top:1px solid #282828;padding:20px 16px 40px;box-sizing:border-box">
+        <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 16px"></div>
+        <div style="font-size:11px;color:#505050;margin-bottom:4px" id="zEntryTime"></div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px" id="zEntryTitle"></div>
+        <button onclick="zDeleteEntry()"
+          style="width:100%;padding:15px;border-radius:12px;border:1px solid rgba(192,64,64,0.3);background:rgba(192,64,64,0.08);color:#c04040;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;margin-bottom:8px;box-sizing:border-box">
+          🗑 Löschen
+        </button>
+        <button onclick="zCloseEntry()"
+          style="width:100%;padding:14px;border-radius:12px;border:1px solid #282828;background:transparent;color:#505050;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          Schließen
+        </button>
       </div>
     </div>
   `;
@@ -140,34 +201,64 @@ function initZeittracker() {
   if (zActiveEntry) zStartLiveTimer();
 }
 
-// ===== SELECTED STATE =====
-let zSelectedActivity = null;
-let zSelectedMood = null;
-
-function zSelectActivity(name) {
-  zSelectedActivity = name;
-  document.querySelectorAll('#zActivityGrid .chip').forEach(b => b.classList.remove('sel'));
-  const btn = document.getElementById('zAct_' + name.replace('/', '_'));
-  if (btn) btn.classList.add('sel');
-  zCheckSaveReady();
+// ===== OVERLAY HELPERS =====
+function zShowOverlay(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.display = 'flex'; }
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.display = 'none';
 }
 
+function zHideOverlay(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.display = 'none'; }
+  // Only show nav if no other overlay open
+  const anyOpen = ['zStopOverlay','zStartOverlay','zCustomOverlay','zEntryOverlay']
+    .some(oid => document.getElementById(oid)?.style.display === 'flex');
+  if (!anyOpen) {
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) nav.style.display = '';
+  }
+}
+
+function zCloseStop() { zHideOverlay('zStopOverlay'); }
+function zCloseStart() { zHideOverlay('zStartOverlay'); }
+function zCloseEntry() { zHideOverlay('zEntryOverlay'); }
+
+// ===== SELECT ACTIVITY =====
+function zSelectAct(name) {
+  zSelectedActivity = name;
+  document.querySelectorAll('#zActGrid button').forEach(b => {
+    b.style.borderColor = '#282828';
+    b.style.background = '#202020';
+    b.style.color = '#e8e4dc';
+  });
+  const btn = document.getElementById('zA_' + name.replace(/\//g,'_'));
+  if (btn) {
+    btn.style.borderColor = '#a8c060';
+    btn.style.background = 'rgba(168,192,96,0.12)';
+    btn.style.color = '#a8c060';
+  }
+  zCheckReady();
+}
+
+// ===== SELECT MOOD =====
 function zSelectMood(n) {
   zSelectedMood = n;
   for (let i=1; i<=10; i++) {
-    const btn = document.getElementById('zMood'+i);
+    const btn = document.getElementById('zM_'+i);
     if (!btn) continue;
     if (i === n) {
       btn.style.background = zMoodColor(n);
       btn.style.color = '#0f0f0f';
       btn.style.borderColor = zMoodColor(n);
     } else {
-      btn.style.background = 'var(--surface2)';
-      btn.style.color = 'var(--muted)';
-      btn.style.borderColor = 'var(--border)';
+      btn.style.background = '#202020';
+      btn.style.color = '#505050';
+      btn.style.borderColor = '#282828';
     }
   }
-  zCheckSaveReady();
+  zCheckReady();
 }
 
 function zMoodColor(n) {
@@ -177,42 +268,54 @@ function zMoodColor(n) {
   return '#7a9e5a';
 }
 
-function zCheckSaveReady() {
-  const btn = document.getElementById('zSaveBtn');
-  if (btn) btn.disabled = !(zSelectedActivity && zSelectedMood);
-}
-
+// ===== SET WITH WHO =====
 function zSetWith(val) {
-  const input = document.getElementById("zWithWho");
-  ["alleine","joshua","andere"].forEach(k => {
-    const btn = document.getElementById("zWithBtn_" + k);
-    if (btn) {
-      if (k === val) {
-        btn.classList.add("sel");
-        btn.style.borderColor = "var(--accent)";
-        btn.style.color = "var(--accent)";
-        btn.style.background = "rgba(168,192,96,0.1)";
-      } else {
-        btn.classList.remove("sel");
-        btn.style.borderColor = "";
-        btn.style.color = "";
-        btn.style.background = "";
-      }
+  ['alleine','joshua','andere'].forEach(k => {
+    const btn = document.getElementById('zW_'+k);
+    if (!btn) return;
+    if (k === val) {
+      btn.style.borderColor = '#a8c060';
+      btn.style.color = '#a8c060';
+      btn.style.background = 'rgba(168,192,96,0.12)';
+    } else {
+      btn.style.borderColor = '#282828';
+      btn.style.color = '#e8e4dc';
+      btn.style.background = '#202020';
     }
   });
-  if (val === "andere") {
-    if (input) { input.style.display = "block"; setTimeout(() => input.focus(), 100); }
+  const input = document.getElementById('zWithWho');
+  if (val === 'andere') {
+    if (input) { input.style.display = 'block'; input.value = ''; setTimeout(() => input.focus(), 100); }
   } else {
-    if (input) { 
-      input.style.display = "none"; 
-      input.value = val === "alleine" ? "Alleine" : "Joshua";
-    }
+    if (input) { input.style.display = 'none'; input.value = val === 'alleine' ? 'Alleine' : 'Joshua'; }
   }
 }
 
-function zOpenCustomActivity() {
-  closeOverlay('zStopSheet');
-  openOverlay('zCustomSheet');
+// ===== CHECK SAVE READY =====
+function zCheckReady() {
+  const btn = document.getElementById('zSaveBtn');
+  if (!btn) return;
+  const ready = zSelectedActivity && zSelectedMood;
+  btn.disabled = !ready;
+  btn.style.opacity = ready ? '1' : '0.3';
+  btn.style.cursor = ready ? 'pointer' : 'default';
+}
+
+// ===== CUSTOM ACTIVITY =====
+let zCustomMode = 'stop'; // 'stop' or 'start'
+
+function zOpenCustom() {
+  zCustomMode = 'stop';
+  document.getElementById('zCustomInput').value = '';
+  zShowOverlay('zCustomOverlay');
+  setTimeout(() => document.getElementById('zCustomInput')?.focus(), 100);
+}
+
+function zStartCustom() {
+  zCustomMode = 'start';
+  zHideOverlay('zStartOverlay');
+  document.getElementById('zCustomInput').value = '';
+  zShowOverlay('zCustomOverlay');
   setTimeout(() => document.getElementById('zCustomInput')?.focus(), 100);
 }
 
@@ -220,66 +323,28 @@ function zConfirmCustom() {
   const val = document.getElementById('zCustomInput')?.value.trim();
   if (!val) return;
   document.getElementById('zCustomInput').value = '';
-  closeOverlay('zCustomSheet');
-  openOverlay('zStopSheet');
-  zSelectedActivity = val;
-  zCheckSaveReady();
-  // Show as selected text
-  const grid = document.getElementById('zActivityGrid');
-  if (grid) {
-    document.querySelectorAll('#zActivityGrid .chip').forEach(b => b.classList.remove('sel'));
-    // Add temp chip
-    const existing = document.getElementById('zCustomActBtn');
-    if (existing) existing.remove();
-    const btn = document.createElement('button');
-    btn.id = 'zCustomActBtn';
-    btn.className = 'chip sel';
-    btn.style.cssText = 'justify-content:flex-start;gap:8px;padding:10px 12px';
-    btn.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#707070;flex-shrink:0;display:inline-block"></span>${val}`;
-    btn.onclick = () => {};
-    grid.insertBefore(btn, grid.firstChild);
+  zHideOverlay('zCustomOverlay');
+  if (zCustomMode === 'start') {
+    zConfirmStart(val);
+  } else {
+    zShowOverlay('zStopOverlay');
+    zSelectedActivity = val;
+    // Show as selected
+    document.querySelectorAll('#zActGrid button').forEach(b => {
+      b.style.borderColor = '#282828';
+      b.style.background = '#202020';
+      b.style.color = '#e8e4dc';
+    });
+    zCheckReady();
   }
 }
 
 // ===== START =====
-function zOpenStart() {
-  openOverlay('zStartSheet');
-}
-
-function zOpenCustomStart() {
-  closeOverlay('zStartSheet');
-  const overlay = document.createElement('div');
-  // Reuse custom sheet with different confirm
-  document.getElementById('zCustomInput').value = '';
-  openOverlay('zCustomSheet');
-  // Override confirm to start
-  window._zCustomConfirmMode = 'start';
-  setTimeout(() => document.getElementById('zCustomInput')?.focus(), 100);
-}
-
-// Override confirmCustom based on mode
-const _zOrigConfirm = zConfirmCustom;
-
-function zConfirmCustom() {
-  if (window._zCustomConfirmMode === 'start') {
-    const val = document.getElementById('zCustomInput')?.value.trim();
-    if (!val) return;
-    document.getElementById('zCustomInput').value = '';
-    closeOverlay('zCustomSheet');
-    window._zCustomConfirmMode = null;
-    zConfirmStart(val);
-    return;
-  }
-  _zOrigConfirm();
-}
+function zOpenStart() { zShowOverlay('zStartOverlay'); }
 
 function zConfirmStart(activity) {
-  closeOverlay('zStartSheet');
-  zActiveEntry = {
-    activity,
-    startTs: Date.now(),
-    withWho: '',
-  };
+  zHideOverlay('zStartOverlay');
+  zActiveEntry = { activity, startTs: Date.now() };
   localStorage.setItem('los_zeit_active', JSON.stringify(zActiveEntry));
   zStartLiveTimer();
   zRenderHome();
@@ -292,55 +357,65 @@ function zStartLiveTimer() {
   zTimerInterval = setInterval(() => {
     const el = document.getElementById('zLiveTimer');
     if (!el || !zActiveEntry) return;
-    const elapsed = Date.now() - zActiveEntry.startTs;
-    el.textContent = zFormatElapsed(elapsed);
+    el.textContent = zFmtElapsed(Date.now() - zActiveEntry.startTs);
   }, 1000);
 }
 
-function zFormatElapsed(ms) {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+function zFmtElapsed(ms) {
+  const s = Math.floor(ms/1000);
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = s%60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
 // ===== STOP =====
 function zOpenStop() {
-  // Reset selections
+  // Reset
   zSelectedActivity = null;
   zSelectedMood = null;
-  document.querySelectorAll('#zActivityGrid .chip').forEach(b => b.classList.remove('sel'));
-  for (let i=1; i<=10; i++) {
-    const btn = document.getElementById('zMood'+i);
-    if (btn) {
-      btn.style.background = 'var(--surface2)';
-      btn.style.color = 'var(--muted)';
-      btn.style.borderColor = 'var(--border)';
-    }
-  }
-  document.getElementById('zWithWho').value = '';
-  document.getElementById('zWithWho').style.display = 'none';
-  ['alleine','joshua','andere'].forEach(k => {
-    const b = document.getElementById('zWithBtn_' + k);
-    if (b) b.classList.remove('sel');
+
+  document.querySelectorAll('#zActGrid button').forEach(b => {
+    b.style.borderColor = '#282828';
+    b.style.background = '#202020';
+    b.style.color = '#e8e4dc';
   });
-  document.getElementById('zNote').value = '';
+  for (let i=1; i<=10; i++) {
+    const btn = document.getElementById('zM_'+i);
+    if (btn) { btn.style.background='#202020'; btn.style.color='#505050'; btn.style.borderColor='#282828'; }
+  }
+  ['alleine','joshua','andere'].forEach(k => {
+    const btn = document.getElementById('zW_'+k);
+    if (btn) { btn.style.borderColor='#282828'; btn.style.color='#e8e4dc'; btn.style.background='#202020'; }
+  });
+  const input = document.getElementById('zWithWho');
+  if (input) { input.style.display='none'; input.value=''; }
+  const note = document.getElementById('zNote');
+  if (note) note.value = '';
 
-  // Pre-select activity if known from start
+  // Pre-select current activity
   if (zActiveEntry?.activity) {
-    zSelectActivity(zActiveEntry.activity);
+    setTimeout(() => zSelectAct(zActiveEntry.activity), 50);
   }
 
-  const btn = document.getElementById('zSaveBtn');
-  if (btn) btn.disabled = true;
+  zCheckReady();
+  zShowOverlay('zStopOverlay');
 
-  openOverlay('zStopSheet');
+  // Scroll sheet to top
+  setTimeout(() => {
+    document.getElementById('zStopSheet')?.scrollTo(0,0);
+  }, 50);
 }
 
+// ===== SAVE =====
 function zSaveEntry() {
   if (!zActiveEntry || !zSelectedActivity || !zSelectedMood) return;
+
+  const withWhoInput = document.getElementById('zWithWho');
+  const withWho = withWhoInput?.style.display === 'block'
+    ? (withWhoInput.value.trim() || '')
+    : (withWhoInput?.value || '');
 
   const endTs = Date.now();
   const entry = {
@@ -349,23 +424,21 @@ function zSaveEntry() {
     startTs: zActiveEntry.startTs,
     endTs,
     durationMs: endTs - zActiveEntry.startTs,
-    withWho: document.getElementById('zWithWho')?.value.trim() || '',
+    withWho,
     mood: zSelectedMood,
     note: document.getElementById('zNote')?.value.trim() || '',
   };
 
-  // Save
   const entries = zGetEntries();
   entries.unshift(entry);
   localStorage.setItem('los_mario_entries', JSON.stringify(entries));
 
-  // Clear active
   zActiveEntry = null;
   localStorage.removeItem('los_zeit_active');
   clearInterval(zTimerInterval);
   zTimerInterval = null;
 
-  closeOverlay('zStopSheet');
+  zHideOverlay('zStopOverlay');
   zRenderHome();
   showToast('Eingetragen ✓');
 }
@@ -381,179 +454,144 @@ function zRenderHome() {
   zCurrentView = 'home';
   const homeEl = document.getElementById('zHome');
   const dayEl = document.getElementById('zDay');
-  if (homeEl) homeEl.style.display = 'block';
+  if (!homeEl) return;
+  homeEl.style.display = 'block';
   if (dayEl) dayEl.style.display = 'none';
 
   const now = new Date();
   const entries = zGetEntries();
   const todayEntries = entries.filter(e => new Date(e.startTs).toDateString() === now.toDateString());
   const todayMs = todayEntries.reduce((s,e) => s+e.durationMs, 0);
+  const avgMood = todayEntries.length
+    ? Math.round(todayEntries.reduce((s,e)=>s+e.mood,0)/todayEntries.length*10)/10
+    : null;
 
   homeEl.innerHTML = `
-    <!-- AKTIVER TIMER -->
     ${zActiveEntry ? `
-      <div style="background:var(--surface);border:1px solid var(--accent);border-radius:18px;padding:24px;text-align:center;margin-bottom:14px">
-        <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Läuft gerade</div>
+      <div style="background:#181818;border:1px solid #a8c060;border-radius:18px;padding:24px;text-align:center;margin-bottom:14px">
+        <div style="font-size:11px;color:#a8c060;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Läuft gerade</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
           <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(zActiveEntry.activity)}"></div>
           <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">${zActiveEntry.activity}</div>
         </div>
-        <div style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:var(--accent);letter-spacing:-3px;line-height:1" id="zLiveTimer">
-          ${zFormatElapsed(Date.now() - zActiveEntry.startTs)}
+        <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;color:#a8c060;letter-spacing:-3px;line-height:1" id="zLiveTimer">
+          ${zFmtElapsed(Date.now() - zActiveEntry.startTs)}
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        <div style="font-size:11px;color:#505050;margin-top:6px">
           gestartet um ${new Date(zActiveEntry.startTs).toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})}
         </div>
-        <button class="btn btn-primary" onclick="zOpenStop()" style="margin-top:16px;background:var(--danger);border-color:var(--danger)">
+        <button onclick="zOpenStop()"
+          style="width:100%;margin-top:16px;padding:18px;border-radius:12px;border:none;background:#c04040;color:#fff;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer">
           ⏹ Stoppen
         </button>
       </div>` : `
-      <button class="btn btn-primary" onclick="zOpenStart()" style="margin-bottom:14px;font-size:18px;padding:20px">
+      <button onclick="zOpenStart()"
+        style="width:100%;padding:20px;border-radius:12px;border:none;background:#a8c060;color:#0f0f0f;font-family:'Syne',sans-serif;font-size:18px;font-weight:800;cursor:pointer;margin-bottom:14px">
         ▶ Aktivität starten
       </button>`
     }
 
-    <!-- HEUTE STATS -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      <div class="stat-cell">
-        <div class="stat-num">${zFormatHours(todayMs)}</div>
-        <div class="stat-lbl">Heute</div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-num">${todayEntries.length}</div>
-        <div class="stat-lbl">Blöcke</div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-num">${todayEntries.length ? Math.round(todayEntries.reduce((s,e)=>s+e.mood,0)/todayEntries.length*10)/10 : '—'}</div>
-        <div class="stat-lbl">Ø Stimmung</div>
-      </div>
+      <div class="stat-cell"><div class="stat-num">${zFmtHours(todayMs)}</div><div class="stat-lbl">Heute</div></div>
+      <div class="stat-cell"><div class="stat-num">${todayEntries.length}</div><div class="stat-lbl">Blöcke</div></div>
+      <div class="stat-cell"><div class="stat-num">${avgMood || '—'}</div><div class="stat-lbl">Ø Stimmung</div></div>
     </div>
 
-    <!-- TAGES-VORSCHAU -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;margin-bottom:14px" onclick="zShowDay()">
+    <div style="background:#181818;border:1px solid #282828;border-radius:14px;padding:14px 16px;cursor:pointer;margin-bottom:14px" onclick="zShowDay()">
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Heute im Überblick</div>
-        <div style="font-size:11px;color:var(--accent)">Details →</div>
+        <div style="font-size:11px;color:#505050;text-transform:uppercase;letter-spacing:0.1em">Heute im Überblick</div>
+        <div style="font-size:11px;color:#a8c060">Details →</div>
       </div>
-      ${zRenderMiniTimeline(todayEntries)}
+      ${zMiniTimeline(todayEntries)}
     </div>
 
-    <!-- LETZTE EINTRÄGE -->
-    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Letzte Einträge</div>
+    <div style="font-size:10px;color:#505050;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Letzte Einträge</div>
     ${todayEntries.length === 0 ? `
-      <div class="empty-state" style="padding:32px 0">
-        <div class="empty-icon">⏱</div>
-        <div class="empty-title">Noch nichts heute</div>
-        <div class="empty-sub">Starte deine erste Aktivität</div>
+      <div style="text-align:center;padding:40px 0;color:#505050">
+        <div style="font-size:36px;margin-bottom:10px">⏱</div>
+        <div>Noch nichts heute</div>
       </div>` : `
       <div style="display:flex;flex-direction:column;gap:6px">
-        ${todayEntries.slice(0,8).map(e => zRenderEntryRow(e)).join('')}
+        ${todayEntries.slice(0,10).map(e => zEntryRow(e)).join('')}
       </div>`
     }
 
-    <!-- EXPORT -->
-    <div style="margin-top:16px">
-      <button class="btn btn-ghost" onclick="zExportCSV()">↓ CSV exportieren</button>
+    <div style="margin-top:14px">
+      <button onclick="zExportCSV()"
+        style="width:100%;padding:13px;border-radius:12px;border:1px solid #282828;background:transparent;color:#505050;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer">
+        ↓ CSV exportieren
+      </button>
     </div>
   `;
 
   if (zActiveEntry) zStartLiveTimer();
 }
 
-function zFormatHours(ms) {
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+function zFmtHours(ms) {
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function zRenderMiniTimeline(entries) {
-  if (!entries.length) return `<div style="height:16px;background:var(--surface2);border-radius:5px"></div>`;
-
+function zMiniTimeline(entries) {
+  if (!entries.length) return `<div style="height:16px;background:#1e1e1e;border-radius:5px"></div>`;
   const now = new Date();
   const dayStart = new Date(now); dayStart.setHours(0,0,0,0);
-  const dayMs = 24 * 60 * 60 * 1000;
-  const totalNowMs = now.getTime() - dayStart.getTime();
-
-  let segments = '';
-  let lastEnd = dayStart.getTime();
-
-  const sorted = [...entries].sort((a,b) => a.startTs - b.startTs);
-
+  const dayMs = 86400000;
+  const sorted = [...entries].sort((a,b) => a.startTs-b.startTs);
+  let segs = '', lastEnd = dayStart.getTime();
   sorted.forEach(e => {
     const gap = e.startTs - lastEnd;
-    if (gap > 0) {
-      const pct = (gap / dayMs) * 100;
-      segments += `<div style="flex:${pct};background:#1a1a1a;min-width:1px"></div>`;
-    }
-    const dur = e.durationMs;
-    const pct = (dur / dayMs) * 100;
-    segments += `<div style="flex:${pct};background:${zGetColor(e.activity)};min-width:2px;border-radius:2px" title="${e.activity}"></div>`;
+    if (gap > 0) segs += `<div style="flex:${gap};background:#1a1a1a;min-width:1px"></div>`;
+    segs += `<div style="flex:${e.durationMs};background:${zGetColor(e.activity)};min-width:2px;border-radius:2px"></div>`;
     lastEnd = e.endTs;
   });
-
-  // Rest bis jetzt
-  const remaining = now.getTime() - lastEnd;
-  if (remaining > 0) {
-    const pct = (remaining / dayMs) * 100;
-    segments += `<div style="flex:${pct};background:#1a1a1a"></div>`;
-  }
-
-  return `<div style="display:flex;height:16px;border-radius:5px;overflow:hidden;gap:1px;background:var(--bg)">${segments}</div>`;
+  const rem = now.getTime() - lastEnd;
+  if (rem > 0) segs += `<div style="flex:${rem};background:#1a1a1a"></div>`;
+  return `<div style="display:flex;height:16px;border-radius:5px;overflow:hidden;gap:1px;background:#0f0f0f">${segs}</div>`;
 }
 
-function zRenderEntryRow(e) {
-  const start = new Date(e.startTs);
-  const end = new Date(e.endTs);
+function zEntryRow(e) {
+  const start = new Date(e.startTs), end = new Date(e.endTs);
+  const fmt = d => d.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'});
   return `
-    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:11px;cursor:pointer"
-      onclick="zOpenEntrySheet('${e.id}')">
-      <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(e.activity)};flex-shrink:0"></div>
+    <div onclick="zOpenEntryDetail('${e.id}')"
+      style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#181818;border:1px solid #282828;border-radius:11px;cursor:pointer">
+      <div style="width:9px;height:9px;border-radius:50%;background:${zGetColor(e.activity)};flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.activity}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">
-          ${start.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})} – ${end.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})}
-          ${e.withWho ? ` · ${e.withWho}` : ''}
-        </div>
+        <div style="font-size:10px;color:#505050;margin-top:2px">${fmt(start)} – ${fmt(end)}${e.withWho ? ' · '+e.withWho : ''}</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        <div style="font-size:11px;color:var(--muted)">${zFormatHours(e.durationMs)}</div>
-        <div style="font-size:11px;padding:2px 7px;border-radius:10px;background:${zMoodColor(e.mood)}20;color:${zMoodColor(e.mood)};border:1px solid ${zMoodColor(e.mood)}40">
-          ${e.mood}/10
-        </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+        <div style="font-size:11px;color:#505050">${zFmtHours(e.durationMs)}</div>
+        <div style="font-size:10px;padding:2px 6px;border-radius:8px;background:${zMoodColor(e.mood)}22;color:${zMoodColor(e.mood)};border:1px solid ${zMoodColor(e.mood)}44">${e.mood}/10</div>
       </div>
     </div>`;
 }
 
-// ===== ENTRY SHEET =====
-let zSheetEntryId = null;
-
-function zOpenEntrySheet(id) {
+// ===== ENTRY DETAIL =====
+function zOpenEntryDetail(id) {
   zSheetEntryId = id;
   const entries = zGetEntries();
   const e = entries.find(e => e.id === id);
   if (!e) return;
-
-  const start = new Date(e.startTs);
-  const end = new Date(e.endTs);
-  const timeStr = `${start.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})} – ${end.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})} · ${zFormatHours(e.durationMs)}`;
-
-  document.getElementById('zEntrySheetTime').textContent = timeStr;
-  document.getElementById('zEntrySheetTitle').innerHTML = `
-    <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(e.activity)};flex-shrink:0"></div>
+  const start = new Date(e.startTs), end = new Date(e.endTs);
+  const fmt = d => d.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('zEntryTime').textContent = `${fmt(start)} – ${fmt(end)} · ${zFmtHours(e.durationMs)}`;
+  document.getElementById('zEntryTitle').innerHTML = `
+    <div style="width:9px;height:9px;border-radius:50%;background:${zGetColor(e.activity)};flex-shrink:0"></div>
     ${e.activity}
-    ${e.withWho ? `<span style="font-size:13px;color:var(--muted);font-weight:400">mit ${e.withWho}</span>` : ''}
-    <span style="margin-left:auto;font-size:14px;padding:3px 8px;border-radius:10px;background:${zMoodColor(e.mood)}20;color:${zMoodColor(e.mood)}">${e.mood}/10</span>
+    ${e.withWho ? `<span style="font-size:13px;color:#505050;font-weight:400">· ${e.withWho}</span>` : ''}
+    <span style="margin-left:auto;font-size:13px;padding:3px 8px;border-radius:8px;background:${zMoodColor(e.mood)}22;color:${zMoodColor(e.mood)}">${e.mood}/10</span>
   `;
-
-  openOverlay('zEntrySheet');
+  zShowOverlay('zEntryOverlay');
 }
 
 function zDeleteEntry() {
   if (!zSheetEntryId) return;
   const entries = zGetEntries().filter(e => e.id !== zSheetEntryId);
   localStorage.setItem('los_mario_entries', JSON.stringify(entries));
-  closeOverlay('zEntrySheet');
+  zHideOverlay('zEntryOverlay');
   if (zCurrentView === 'day') zRenderDayView();
   else zRenderHome();
   showToast('Gelöscht');
@@ -577,117 +615,143 @@ function zChangeDay(dir) {
 function zRenderDayView() {
   const el = document.getElementById('zDay');
   if (!el) return;
-
   const now = new Date();
   const isToday = zViewDate.toDateString() === now.toDateString();
-  const entries = zGetEntries().filter(e =>
-    new Date(e.startTs).toDateString() === zViewDate.toDateString()
-  );
-
-  const dayMs = entries.reduce((s,e) => s+e.durationMs, 0);
-  const avgMood = entries.length ? Math.round(entries.reduce((s,e)=>s+e.mood,0)/entries.length*10)/10 : null;
-
-  // Zeitlinie aufbauen — 24h von 0 bis 24
+  const entries = zGetEntries().filter(e => new Date(e.startTs).toDateString() === zViewDate.toDateString());
   const dayStart = new Date(zViewDate); dayStart.setHours(0,0,0,0);
   const HOUR_PX = 60;
   const totalPx = 24 * HOUR_PX;
+  const dayMs = entries.reduce((s,e)=>s+e.durationMs,0);
+  const avgMood = entries.length ? Math.round(entries.reduce((s,e)=>s+e.mood,0)/entries.length*10)/10 : null;
 
-  let timelineHtml = '';
-
-  // Stundenlinien
+  let tlHtml = '';
   for (let h=0; h<=24; h++) {
-    const top = h * HOUR_PX;
-    timelineHtml += `<div style="position:absolute;left:40px;right:0;height:1px;background:var(--border);top:${top}px;pointer-events:none"></div>`;
-    if (h < 24) timelineHtml += `<div style="position:absolute;left:0;font-size:10px;color:var(--muted);width:36px;text-align:right;top:${top}px;transform:translateY(-50%);pointer-events:none">${h.toString().padStart(2,'0')}:00</div>`;
+    const top = h*HOUR_PX;
+    tlHtml += `<div style="position:absolute;left:40px;right:0;height:1px;background:#282828;top:${top}px;pointer-events:none"></div>`;
+    if (h<24) tlHtml += `<div style="position:absolute;left:0;font-size:10px;color:#505050;width:36px;text-align:right;top:${top}px;transform:translateY(-50%);pointer-events:none">${String(h).padStart(2,'0')}:00</div>`;
   }
-
-  // Einträge
-  const sorted = [...entries].sort((a,b) => a.startTs-b.startTs);
-  sorted.forEach(e => {
-    const startMin = (e.startTs - dayStart.getTime()) / 60000;
-    const durMin = e.durationMs / 60000;
-    const top = (startMin / 60) * HOUR_PX;
-    const height = Math.max((durMin / 60) * HOUR_PX, 20);
-
-    timelineHtml += `
-      <div style="position:absolute;left:48px;right:0;top:${top}px;height:${height}px;border-radius:8px;overflow:hidden;cursor:pointer" onclick="zOpenEntrySheet('${e.id}')">
+  [...entries].sort((a,b)=>a.startTs-b.startTs).forEach(e => {
+    const startMin = (e.startTs-dayStart.getTime())/60000;
+    const durMin = e.durationMs/60000;
+    const top = (startMin/60)*HOUR_PX;
+    const height = Math.max((durMin/60)*HOUR_PX, 20);
+    tlHtml += `
+      <div onclick="zOpenEntryDetail('${e.id}')"
+        style="position:absolute;left:48px;right:0;top:${top}px;height:${height}px;border-radius:8px;overflow:hidden;cursor:pointer">
         <div style="height:100%;background:${zGetColor(e.activity)};padding:5px 8px;display:flex;flex-direction:column;justify-content:center">
           <div style="font-size:11px;font-weight:500;color:#f0ede6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.activity}</div>
-          ${height > 32 ? `<div style="font-size:9px;color:rgba(240,237,230,0.7);margin-top:1px">${zFormatHours(e.durationMs)}${e.withWho?' · '+e.withWho:''} · ${e.mood}/10</div>` : ''}
+          ${height>32?`<div style="font-size:9px;color:rgba(240,237,230,0.7);margin-top:1px">${zFmtHours(e.durationMs)}${e.withWho?' · '+e.withWho:''} · ${e.mood}/10</div>`:''}
         </div>
       </div>`;
   });
-
-  // Jetzt-Linie
   if (isToday) {
-    const nowMin = (now.getTime() - dayStart.getTime()) / 60000;
-    const top = (nowMin / 60) * HOUR_PX;
-    timelineHtml += `<div style="position:absolute;left:40px;right:0;height:2px;background:var(--danger);top:${top}px;z-index:10;pointer-events:none"></div>`;
-    timelineHtml += `<div style="position:absolute;left:34px;width:10px;height:10px;border-radius:50%;background:var(--danger);top:${top}px;transform:translateY(-50%);z-index:10;pointer-events:none"></div>`;
+    const nowMin = (now.getTime()-dayStart.getTime())/60000;
+    const top = (nowMin/60)*HOUR_PX;
+    tlHtml += `<div style="position:absolute;left:40px;right:0;height:2px;background:#c04040;top:${top}px;z-index:10;pointer-events:none"></div>`;
+    tlHtml += `<div style="position:absolute;left:34px;width:10px;height:10px;border-radius:50%;background:#c04040;top:${top}px;transform:translateY(-50%);z-index:10;pointer-events:none"></div>`;
   }
 
   el.innerHTML = `
-    <!-- Header -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <button class="btn btn-icon" onclick="zRenderHome()">←</button>
-      <button class="btn btn-icon" onclick="zChangeDay(-1)">‹</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <button onclick="zRenderHome()"
+        style="width:36px;height:36px;border-radius:10px;border:1px solid #282828;background:#181818;color:#e8e4dc;font-size:16px;cursor:pointer;flex-shrink:0">←</button>
+      <button onclick="zChangeDay(-1)"
+        style="width:36px;height:36px;border-radius:10px;border:1px solid #282828;background:#181818;color:#e8e4dc;font-size:18px;cursor:pointer;flex-shrink:0">‹</button>
       <div style="flex:1;text-align:center">
-        <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;letter-spacing:-0.5px">
-          ${isToday ? 'Heute' : zViewDate.toLocaleDateString('de',{weekday:'long',day:'numeric',month:'long'})}
-        </div>
-        <div style="font-size:10px;color:var(--muted)">
-          ${zViewDate.toLocaleDateString('de',{day:'numeric',month:'long',year:'numeric'})}
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;letter-spacing:-0.5px">
+          ${isToday?'Heute':zViewDate.toLocaleDateString('de',{weekday:'short',day:'numeric',month:'short'})}
         </div>
       </div>
-      <button class="btn btn-icon" onclick="zChangeDay(1)">›</button>
+      <button onclick="zChangeDay(1)"
+        style="width:36px;height:36px;border-radius:10px;border:1px solid #282828;background:#181818;color:#e8e4dc;font-size:18px;cursor:pointer;flex-shrink:0">›</button>
     </div>
-
-    <!-- Stats -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-      <div class="stat-cell"><div class="stat-num">${zFormatHours(dayMs)}</div><div class="stat-lbl">Getrackt</div></div>
+      <div class="stat-cell"><div class="stat-num">${zFmtHours(dayMs)}</div><div class="stat-lbl">Getrackt</div></div>
       <div class="stat-cell"><div class="stat-num">${entries.length}</div><div class="stat-lbl">Blöcke</div></div>
-      <div class="stat-cell"><div class="stat-num">${avgMood || '—'}</div><div class="stat-lbl">Ø Stimmung</div></div>
+      <div class="stat-cell"><div class="stat-num">${avgMood||'—'}</div><div class="stat-lbl">Ø Stimmung</div></div>
     </div>
-
-    <!-- Aktivitäts-Legende -->
-    ${zRenderDayLegend(entries)}
-
-    <!-- Zeitlinie -->
-    <div style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch">
-      <div style="position:relative;padding-left:48px;height:${totalPx}px;margin-bottom:20px">
-        ${timelineHtml}
-      </div>
+    <div style="overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div style="position:relative;padding-left:48px;height:${totalPx}px;margin-bottom:20px">${tlHtml}</div>
     </div>
   `;
 
-  // Scroll zu aktueller Zeit oder frühem Morgen
   setTimeout(() => {
     const scr = el.querySelector('div[style*="overflow-y:auto"]');
-    if (scr) {
-      if (isToday) {
-        const nowMin = (now.getTime() - dayStart.getTime()) / 60000;
-        scr.scrollTop = Math.max(0, (nowMin/60)*HOUR_PX - 150);
-      } else if (entries.length) {
-        const firstMin = (sorted[0].startTs - dayStart.getTime()) / 60000;
-        scr.scrollTop = Math.max(0, (firstMin/60)*HOUR_PX - 60);
-      } else {
-        scr.scrollTop = 8 * HOUR_PX; // 8 Uhr
-      }
+    if (scr && isToday) {
+      const nowMin = (now.getTime()-dayStart.getTime())/60000;
+      scr.scrollTop = Math.max(0,(nowMin/60)*HOUR_PX-150);
     }
   }, 50);
 }
 
-function zRenderDayLegend(entries) {
-  const used = {};
-  entries.forEach(e => { used[e.activity] = true; });
-  if (!Object.keys(used).length) return '';
-  return `
-    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:10px">
-      ${Object.keys(used).map(a => `
-        <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
-          <div style="width:7px;height:7px;border-radius:50%;background:${zGetColor(a)}"></div>${a}
-        </div>`).join('')}
-    </div>`;
+function zRenderHome() {
+  zCurrentView = 'home';
+  const homeEl = document.getElementById('zHome');
+  const dayEl = document.getElementById('zDay');
+  if (!homeEl) return;
+  homeEl.style.display = 'block';
+  if (dayEl) dayEl.style.display = 'none';
+
+  const now = new Date();
+  const entries = zGetEntries();
+  const todayEntries = entries.filter(e => new Date(e.startTs).toDateString() === now.toDateString());
+  const todayMs = todayEntries.reduce((s,e)=>s+e.durationMs,0);
+  const avgMood = todayEntries.length ? Math.round(todayEntries.reduce((s,e)=>s+e.mood,0)/todayEntries.length*10)/10 : null;
+
+  homeEl.innerHTML = `
+    ${zActiveEntry ? `
+      <div style="background:#181818;border:1px solid #a8c060;border-radius:18px;padding:24px;text-align:center;margin-bottom:14px">
+        <div style="font-size:11px;color:#a8c060;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Läuft gerade</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(zActiveEntry.activity)}"></div>
+          <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">${zActiveEntry.activity}</div>
+        </div>
+        <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;color:#a8c060;letter-spacing:-3px;line-height:1" id="zLiveTimer">
+          ${zFmtElapsed(Date.now()-zActiveEntry.startTs)}
+        </div>
+        <div style="font-size:11px;color:#505050;margin-top:6px">
+          gestartet um ${new Date(zActiveEntry.startTs).toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})}
+        </div>
+        <button onclick="zOpenStop()"
+          style="width:100%;margin-top:16px;padding:18px;border-radius:12px;border:none;background:#c04040;color:#fff;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer">
+          ⏹ Stoppen
+        </button>
+      </div>` : `
+      <button onclick="zOpenStart()"
+        style="width:100%;padding:20px;border-radius:12px;border:none;background:#a8c060;color:#0f0f0f;font-family:'Syne',sans-serif;font-size:18px;font-weight:800;cursor:pointer;margin-bottom:14px">
+        ▶ Aktivität starten
+      </button>`
+    }
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="stat-cell"><div class="stat-num">${zFmtHours(todayMs)}</div><div class="stat-lbl">Heute</div></div>
+      <div class="stat-cell"><div class="stat-num">${todayEntries.length}</div><div class="stat-lbl">Blöcke</div></div>
+      <div class="stat-cell"><div class="stat-num">${avgMood||'—'}</div><div class="stat-lbl">Ø Stimmung</div></div>
+    </div>
+    <div style="background:#181818;border:1px solid #282828;border-radius:14px;padding:14px 16px;cursor:pointer;margin-bottom:14px" onclick="zShowDay()">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:11px;color:#505050;text-transform:uppercase;letter-spacing:0.1em">Heute im Überblick</div>
+        <div style="font-size:11px;color:#a8c060">Details →</div>
+      </div>
+      ${zMiniTimeline(todayEntries)}
+    </div>
+    <div style="font-size:10px;color:#505050;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Letzte Einträge</div>
+    ${todayEntries.length===0 ? `
+      <div style="text-align:center;padding:40px 0;color:#505050">
+        <div style="font-size:36px;margin-bottom:10px">⏱</div>
+        <div>Noch nichts heute</div>
+      </div>` : `
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${todayEntries.slice(0,10).map(e=>zEntryRow(e)).join('')}
+      </div>`
+    }
+    <div style="margin-top:14px">
+      <button onclick="zExportCSV()"
+        style="width:100%;padding:13px;border-radius:12px;border:1px solid #282828;background:transparent;color:#505050;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer">
+        ↓ CSV exportieren
+      </button>
+    </div>
+  `;
+  if (zActiveEntry) zStartLiveTimer();
 }
 
 // ===== EXPORT =====
@@ -696,26 +760,15 @@ function zExportCSV() {
   if (!entries.length) { showToast('Keine Daten'); return; }
   const header = ['Datum','Start','Ende','Dauer (min)','Aktivität','Mit wem','Stimmung','Notiz'];
   const rows = entries.map(e => {
-    const start = new Date(e.startTs);
-    const end = new Date(e.endTs);
-    return [
-      start.toLocaleDateString('de'),
-      start.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}),
-      end.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}),
-      Math.round(e.durationMs/60000),
-      e.activity,
-      e.withWho||'',
-      e.mood,
-      e.note||''
-    ].map(v => `"${v}"`).join(',');
+    const s = new Date(e.startTs), end = new Date(e.endTs);
+    const fmt = d => d.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'});
+    return [s.toLocaleDateString('de'),fmt(s),fmt(end),Math.round(e.durationMs/60000),e.activity,e.withWho||'',e.mood,e.note||'']
+      .map(v=>`"${v}"`).join(',');
   });
-  const csv = [header.join(','), ...rows].join('\n');
-  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const csv = [header.join(','),...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `zeittracker_${new Date().toLocaleDateString('de',{month:'long',year:'numeric'})}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('CSV exportiert ✓');
+  a.href=url; a.download=`zeittracker_${new Date().toLocaleDateString('de',{month:'long',year:'numeric'})}.csv`;
+  a.click(); URL.revokeObjectURL(url); showToast('CSV exportiert ✓');
 }
