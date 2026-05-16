@@ -280,19 +280,28 @@ input[type=range]:disabled::-webkit-slider-thumb {
 
 .sheet {
   width: 100%;
+  max-width: 100vw;
   background: var(--surface);
   border-radius: 20px 20px 0 0;
   padding: 20px;
-  padding-bottom: 40px;
+  padding-bottom: 48px;
   border-top: 1px solid var(--border);
-  max-height: 88dvh;
+  /* Feste Höhe — scrollbar */
+  max-height: 90dvh;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overscroll-behavior: contain none;
+  overscroll-behavior: contain;
   position: relative;
   z-index: 9001;
+  box-sizing: border-box;
+}
+
+/* Alle Kinder im Sheet auf volle Breite begrenzen */
+.sheet * {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sheet-handle {
