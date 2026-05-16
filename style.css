@@ -105,7 +105,7 @@ body {
   display: flex;
   align-items: center;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  z-index: 100;
+  z-index: 50;
 }
 
 .nav-btn {
