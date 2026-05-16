@@ -275,6 +275,8 @@ input[type=range]:disabled::-webkit-slider-thumb {
   align-items: flex-end;
   overflow: hidden;
   touch-action: none;
+  /* Sheet 80px vom unteren Rand — über Safari-Leiste */
+  padding-bottom: 80px;
 }
 .overlay-bg.open { display: flex; }
 
@@ -284,10 +286,9 @@ input[type=range]:disabled::-webkit-slider-thumb {
   background: var(--surface);
   border-radius: 20px 20px 0 0;
   padding: 20px;
-  padding-bottom: 48px;
+  padding-bottom: 80px;
   border-top: 1px solid var(--border);
-  /* Feste Höhe — scrollbar */
-  max-height: 90dvh;
+  max-height: 75dvh;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
