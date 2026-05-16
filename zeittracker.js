@@ -116,10 +116,10 @@ function initZeittracker() {
           rows="2"></textarea>
 
       </div>
-      <!-- Buttons nebeneinander — fest unten -->
-      <div style="width:100%;background:#181818;padding:12px 16px 32px;box-sizing:border-box;border-top:1px solid #282828;display:flex;gap:10px">
+      <!-- Buttons position:fixed — immer sichtbar egal was -->
+      <div style="position:fixed;bottom:100px;left:0;right:0;padding:0 16px;display:flex;gap:10px;z-index:99999">
         <button onclick="zCloseStop()"
-          style="flex:1;padding:17px;border-radius:12px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          style="flex:1;padding:17px;border-radius:12px;border:1px solid #444;background:#2a2a2a;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
           Abbrechen
         </button>
         <button id="zSaveBtn" onclick="zSaveEntry()" disabled
@@ -193,14 +193,14 @@ function initZeittracker() {
         <div style="font-size:11px;color:#505050;margin-bottom:4px" id="zEntryTime"></div>
         <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px" id="zEntryTitle"></div>
       </div>
-      <!-- Buttons nebeneinander — fest unten -->
-      <div style="width:100%;background:#181818;padding:12px 16px 40px;box-sizing:border-box;border-top:1px solid #282828;display:flex;gap:10px">
+      <!-- Buttons position:fixed — immer sichtbar egal was -->
+      <div style="position:fixed;bottom:100px;left:0;right:0;padding:0 16px;display:flex;gap:10px;z-index:99999">
         <button onclick="zCloseEntry()"
-          style="flex:1;padding:17px;border-radius:12px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          style="flex:1;padding:17px;border-radius:12px;border:1px solid #444;background:#2a2a2a;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
           Schließen
         </button>
         <button onclick="zDeleteEntry()"
-          style="flex:1;padding:17px;border-radius:12px;border:1px solid rgba(192,64,64,0.3);background:rgba(192,64,64,0.08);color:#c04040;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          style="flex:1;padding:17px;border-radius:12px;border:1px solid rgba(192,64,64,0.3);background:rgba(192,64,64,0.15);color:#c04040;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
           🗑 Löschen
         </button>
       </div>
