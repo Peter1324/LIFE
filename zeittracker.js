@@ -44,19 +44,20 @@ function initZeittracker() {
       background:rgba(0,0,0,0.8);
       z-index:9999;
       align-items:flex-end;
+      flex-direction:column;
+      justify-content:flex-end;
     ">
       <div id="zStopSheet" style="
         width:100%;
         background:#181818;
         border-radius:20px 20px 0 0;
         border-top:1px solid #282828;
-        max-height:90dvh;
+        max-height:60dvh;
         overflow-y:auto;
         overflow-x:hidden;
         -webkit-overflow-scrolling:touch;
         touch-action:pan-y;
-        padding:20px 16px;
-        padding-bottom:max(60px,env(safe-area-inset-bottom,0px) + 60px);
+        padding:20px 16px 12px;
         box-sizing:border-box;
       ">
         <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 18px"></div>
@@ -113,13 +114,15 @@ function initZeittracker() {
           style="width:100%;background:#202020;border:1px solid #282828;border-radius:10px;padding:12px;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:13px;resize:none;outline:none;margin-bottom:20px;box-sizing:border-box"
           rows="2"></textarea>
 
-        <!-- Buttons — untereinander, volle Breite -->
+      </div>
+      <!-- Buttons FEST unten — außerhalb des scrollbaren Bereichs -->
+      <div style="width:100%;background:#181818;padding:12px 16px 32px;box-sizing:border-box;border-top:1px solid #282828">
         <button id="zSaveBtn" onclick="zSaveEntry()" disabled
-          style="width:100%;padding:18px;border-radius:12px;border:none;background:#a8c060;color:#0f0f0f;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:10px;box-sizing:border-box;opacity:0.3">
+          style="width:100%;padding:17px;border-radius:12px;border:none;background:#a8c060;color:#0f0f0f;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:10px;box-sizing:border-box;display:block;opacity:0.3">
           Speichern ✓
         </button>
         <button onclick="zCloseStop()"
-          style="width:100%;padding:16px;border-radius:12px;border:1px solid #282828;background:transparent;color:#505050;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
+          style="width:100%;padding:17px;border-radius:12px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box;display:block">
           Abbrechen
         </button>
       </div>
@@ -180,22 +183,25 @@ function initZeittracker() {
     </div>
 
     <!-- ===== ENTRY DETAIL ===== -->
-    <div id="zEntryOverlay" style="
-      display:none;position:fixed;inset:0;
-      background:rgba(0,0,0,0.8);z-index:9999;align-items:flex-end;
-    ">
-      <div style="width:100%;background:#181818;border-radius:20px 20px 0 0;border-top:1px solid #282828;padding:20px 16px;padding-bottom:max(32px,env(safe-area-inset-bottom,0px) + 32px);box-sizing:border-box">
-        <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 16px"></div>
-        <div style="font-size:11px;color:#505050;margin-bottom:4px" id="zEntryTime"></div>
-        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px" id="zEntryTitle"></div>
-        <button onclick="zDeleteEntry()"
-          style="width:100%;padding:16px;border-radius:12px;border:1px solid rgba(192,64,64,0.3);background:rgba(192,64,64,0.08);color:#c04040;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;margin-bottom:10px;box-sizing:border-box">
-          🗑 Löschen
-        </button>
-        <button onclick="zCloseEntry()"
-          style="width:100%;padding:16px;border-radius:12px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box">
-          Schließen
-        </button>
+    <div id="zEntryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:flex-end">
+      <div style="width:100%;background:#181818;border-radius:20px 20px 0 0;border-top:1px solid #282828;box-sizing:border-box;display:flex;flex-direction:column">
+        <!-- Scrollbarer Inhalt -->
+        <div style="padding:20px 16px 12px;box-sizing:border-box">
+          <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 16px"></div>
+          <div style="font-size:11px;color:#505050;margin-bottom:4px" id="zEntryTime"></div>
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px" id="zEntryTitle"></div>
+        </div>
+        <!-- Buttons FEST unten — nie scrollbar -->
+        <div style="padding:12px 16px 32px;box-sizing:border-box;background:#181818;border-top:1px solid #282828">
+          <button onclick="zDeleteEntry()"
+            style="width:100%;padding:17px;border-radius:12px;border:1px solid rgba(192,64,64,0.3);background:rgba(192,64,64,0.08);color:#c04040;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;margin-bottom:10px;box-sizing:border-box;display:block">
+            🗑 Löschen
+          </button>
+          <button onclick="zCloseEntry()"
+            style="width:100%;padding:17px;border-radius:12px;border:1px solid #282828;background:#202020;color:#e8e4dc;font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;box-sizing:border-box;display:block">
+            Schließen
+          </button>
+        </div>
       </div>
     </div>
   `;
