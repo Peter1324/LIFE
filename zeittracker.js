@@ -41,8 +41,8 @@ function initZeittracker() {
     <div id="zDay" style="display:none"></div>
 
     <!-- STOP SHEET — Eintrag abschließen -->
-    <div class="overlay-bg" id="zStopSheet" style="overflow:hidden">
-      <div class="sheet" style="max-height:80vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y">
+    <div class="overlay-bg" id="zStopSheet">
+      <div class="sheet">
         <div class="sheet-handle"></div>
         <div class="sheet-title" style="margin-bottom:12px">Was hast du gemacht?</div>
 
@@ -85,10 +85,9 @@ function initZeittracker() {
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Notiz (optional)</div>
         <textarea class="input" id="zNote" placeholder="Erkenntnisse?" rows="2" style="resize:none;margin-bottom:14px"></textarea>
 
-        <!-- Spacer damit Buttons immer sichtbar -->
-        <div style="display:flex;gap:8px;margin-top:8px;padding-bottom:20px">
-          <button class="btn btn-ghost" onclick="closeOverlay('zStopSheet')" style="flex:0 0 auto;padding:16px 18px;font-size:15px">Abbrechen</button>
-          <button class="btn btn-primary" id="zSaveBtn" onclick="zSaveEntry()" disabled style="font-size:16px;padding:16px">Speichern ✓</button>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          <button class="btn btn-primary" id="zSaveBtn" onclick="zSaveEntry()" disabled style="width:100%;padding:18px;font-size:16px">Speichern ✓</button>
+          <button class="btn btn-ghost" onclick="closeOverlay('zStopSheet')" style="width:100%;padding:16px;font-size:15px">Abbrechen</button>
         </div>
       </div>
     </div>
