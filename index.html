@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Life OS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ SCREENS ============ -->
+<div id="app">
+
+  <!-- DASHBOARD -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="screen-header">
+      <h1>Dashboard</h1>
+      <p id="dashDate"></p>
+    </div>
+    <div class="screen-content">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">🏠</div>
+        <div class="placeholder-title">Dashboard</div>
+        <div class="placeholder-sub">Kommt in Phase 5 — Übersichten & Statistiken</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTD -->
+  <div class="screen" id="screen-gtd">
+    <div class="screen-header">
+      <h1>Aufgaben</h1>
+      <p>Getting Things Done</p>
+    </div>
+    <div class="screen-content">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">✅</div>
+        <div class="placeholder-title">GTD-System</div>
+        <div class="placeholder-sub">Kommt in Phase 3 — Inbox, Projekte, Next Actions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZEITTRACKER -->
+  <div class="screen" id="screen-zeit">
+    <div class="screen-header">
+      <h1>Zeitprotokoll</h1>
+      <p id="zeitDate"></p>
+    </div>
+    <div class="screen-content" id="zeitContent">
+      <!-- Wird von zeittracker.js befüllt -->
+    </div>
+  </div>
+
+  <!-- GYM -->
+  <div class="screen" id="screen-gym">
+    <div class="screen-header">
+      <h1>Gym</h1>
+      <p>Fortschritt tracken</p>
+    </div>
+    <div class="screen-content">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">💪</div>
+        <div class="placeholder-title">Gym Tracker</div>
+        <div class="placeholder-sub">Kommt in Phase 4 — Übungen, Gewichte, Diagramme</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATISTIKEN -->
+  <div class="screen" id="screen-stats">
+    <div class="screen-header">
+      <h1>Statistiken</h1>
+      <p>Monatliche Übersicht</p>
+    </div>
+    <div class="screen-content">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">📊</div>
+        <div class="placeholder-title">Statistiken</div>
+        <div class="placeholder-sub">Kommt in Phase 5 — Auswertungen & Grafiken</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ============ NAVIGATION ============ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-screen="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span>Dashboard</span>
+  </button>
+  <button class="nav-btn" data-screen="gtd">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+    </svg>
+    <span>Aufgaben</span>
+  </button>
+  <button class="nav-btn nav-btn-center" data-screen="zeit">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+    </svg>
+    <span>Zeit</span>
+  </button>
+  <button class="nav-btn" data-screen="gym">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4"/>
+    </svg>
+    <span>Gym</span>
+  </button>
+  <button class="nav-btn" data-screen="stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span>Statistiken</span>
+  </button>
+</nav>
+
+<!-- ============ SCRIPTS ============ -->
+<script src="db.js"></script>
+<script src="zeittracker.js"></script>
+<script src="gtd.js"></script>
+<script src="gym.js"></script>
+<script src="dashboard.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
