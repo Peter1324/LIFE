@@ -280,17 +280,19 @@ input[type=range]:disabled::-webkit-slider-thumb {
   width: 100%;
   background: var(--surface);
   border-radius: 20px 20px 0 0;
-  padding: 20px;
-  /* Extra Padding unten damit Nav-Bar nichts verdeckt */
-  padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 68px));
+  padding: 20px 20px 40px;
   border-top: 1px solid var(--border);
-  max-height: 80vh;
-  /* Nur vertikales Scrollen erlaubt */
-  overflow-y: auto;
+  /* Nimmt fast den ganzen Bildschirm ein */
+  max-height: 92dvh;
+  height: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  /* Buttons immer erreichbar */
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 20px));
 }
 
 .sheet-handle {
