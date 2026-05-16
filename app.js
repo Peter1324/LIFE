@@ -68,22 +68,26 @@ function openOverlay(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add('open');
-  // Hintergrund einfrieren damit er nicht mitscrollt
   document.body.style.overflow = 'hidden';
   document.body.style.position = 'fixed';
   document.body.style.width = '100%';
+  // Nav-Bar verstecken damit Sheet voll genutzt werden kann
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.display = 'none';
 }
 
 function closeOverlay(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.remove('open');
-  // Hintergrund wieder freigeben wenn kein Overlay mehr offen
   const anyOpen = document.querySelector('.overlay-bg.open');
   if (!anyOpen) {
     document.body.style.overflow = '';
     document.body.style.position = '';
     document.body.style.width = '';
+    // Nav-Bar wieder anzeigen
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) nav.style.display = '';
   }
 }
 
