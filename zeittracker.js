@@ -64,7 +64,7 @@ function initZeittracker() {
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Mit wem?</div>
         <div style="display:flex;gap:6px;margin-bottom:12px">
           <button id="zWithBtn_alleine" onclick="zSetWith('alleine')" class="chip" style="flex:1;justify-content:center;padding:10px">Alleine</button>
-          <button id="zWithBtn_joshua" onclick="zSetWith('Joshua')" class="chip" style="flex:1;justify-content:center;padding:10px">Joshua</button>
+          <button id="zWithBtn_joshua" onclick="zSetWith('joshua')" class="chip" style="flex:1;justify-content:center;padding:10px">Joshua</button>
           <button id="zWithBtn_andere" onclick="zSetWith('andere')" class="chip" style="flex:1;justify-content:center;padding:10px">Andere…</button>
         </div>
         <input type="text" class="input" id="zWithWho" placeholder="Name eingeben…" style="margin-bottom:12px;display:none">
@@ -187,12 +187,27 @@ function zSetWith(val) {
   const input = document.getElementById("zWithWho");
   ["alleine","joshua","andere"].forEach(k => {
     const btn = document.getElementById("zWithBtn_" + k);
-    if (btn) btn.classList.toggle("sel", k === val);
+    if (btn) {
+      if (k === val) {
+        btn.classList.add("sel");
+        btn.style.borderColor = "var(--accent)";
+        btn.style.color = "var(--accent)";
+        btn.style.background = "rgba(168,192,96,0.1)";
+      } else {
+        btn.classList.remove("sel");
+        btn.style.borderColor = "";
+        btn.style.color = "";
+        btn.style.background = "";
+      }
+    }
   });
   if (val === "andere") {
-    if (input) { input.style.display = "block"; input.focus(); }
+    if (input) { input.style.display = "block"; setTimeout(() => input.focus(), 100); }
   } else {
-    if (input) { input.style.display = "none"; input.value = val === "alleine" ? "Alleine" : "Joshua"; }
+    if (input) { 
+      input.style.display = "none"; 
+      input.value = val === "alleine" ? "Alleine" : "Joshua";
+    }
   }
 }
 
