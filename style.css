@@ -276,7 +276,7 @@ input[type=range]:disabled::-webkit-slider-thumb {
   overflow: hidden;
   touch-action: none;
   /* Sheet 80px vom unteren Rand — über Safari-Leiste */
-  padding-bottom: 80px;
+  padding-bottom: 160px;
 }
 .overlay-bg.open { display: flex; }
 
@@ -286,7 +286,7 @@ input[type=range]:disabled::-webkit-slider-thumb {
   background: var(--surface);
   border-radius: 20px 20px 0 0;
   padding: 20px;
-  padding-bottom: 80px;
+  padding-bottom: 160px;
   border-top: 1px solid var(--border);
   max-height: 75dvh;
   overflow-y: auto;
