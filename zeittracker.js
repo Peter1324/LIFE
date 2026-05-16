@@ -58,7 +58,7 @@ function initZeittracker() {
         overflow-x:hidden;
         -webkit-overflow-scrolling:touch;
         touch-action:pan-y;
-        padding:20px 16px 12px;
+        padding:20px 16px 160px;
         box-sizing:border-box;
       ">
         <div style="width:36px;height:4px;background:#282828;border-radius:2px;margin:0 auto 18px"></div>
