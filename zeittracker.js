@@ -1,117 +1,98 @@
 /* ============================================
-   zeittracker.js — Zeittracker Modul
-   Wird in screen-zeit geladen
+   zeittracker.js — Mario Schlöer Methode
+   Start/Stop Timer, minutengenau
+   Stimmung 1-10, Mit wem, Aktivität
    ============================================ */
 
-const SLOT_MIN = 30;
-const SLOT_PX = 48;
-const PX_PER_MIN = SLOT_PX / SLOT_MIN;
-const TOTAL_SLOTS = 48;
-
 const ZEIT_COLORS = {
-  'Tiefarbeit':'#7a9e5a','E-Mails':'#5a8aae','Meeting':'#ae9a5a',
-  'Handy/Social':'#ae5a5a','Admin/Orga':'#7a5aae','Pause':'#ae7a5a',
-  'Lernen':'#5aae8a','Gespräch':'#ae6a5a','Schlafen':'#5a6aae','Sport':'#ae5a8a'
+  'Tiefarbeit':   '#7a9e5a',
+  'E-Mails':      '#5a8aae',
+  'Meeting':      '#ae9a5a',
+  'Handy/Social': '#ae5a5a',
+  'Admin/Orga':   '#7a5aae',
+  'Pause':        '#ae7a5a',
+  'Lernen':       '#5aae8a',
+  'Gespräch':     '#ae6a5a',
+  'Schlafen':     '#5a6aae',
+  'Sport':        '#ae5a8a',
 };
-function zGetColor(a) { return ZEIT_COLORS[a] || '#707070'; }
+function zGetColor(name) { return ZEIT_COLORS[name] || '#707070'; }
 
+// State
+let zActiveEntry = null;      // laufender Eintrag { activity, startTs, withWho }
+let zTimerInterval = null;
 let zViewDate = new Date();
-let zReturnToDay = false;
-let zEntrySlotTs = null;
-let zEntryActivities = [];
-let zSheetSlotTs = null;
-let zCountdownInterval = null;
+let zCurrentView = 'home';    // 'home' | 'day'
 
 // ===== INIT =====
 function initZeittracker() {
-  const content = document.getElementById('zeitContent');
+  const content = document.getElementById('screen-zeit')?.querySelector('.screen-content');
   if (!content) return;
 
+  // Laufenden Eintrag aus localStorage laden
+  const saved = localStorage.getItem('los_zeit_active');
+  if (saved) zActiveEntry = JSON.parse(saved);
+
   content.innerHTML = `
-    <!-- HOME VIEW -->
-    <div id="zHome">
-      <div class="card" style="text-align:center;margin-bottom:12px">
-        <div class="card-title">Nächster Check-In in</div>
-        <div style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:var(--accent);letter-spacing:-3px;line-height:1" id="zCountdown">00:00</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">um <span id="zNextTime">—</span> Uhr</div>
-        <button class="btn btn-primary" id="zCheckinBtn" onclick="zStartEntry(null)" style="margin-top:14px">✓ Jetzt einchecken</button>
-      </div>
-
-      <div class="card" onclick="zShowDay()" style="cursor:pointer;margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Heute im Überblick</div>
-          <div style="font-size:11px;color:var(--accent)">Kalender →</div>
-        </div>
-        <div id="zMiniBar" style="display:flex;height:16px;border-radius:5px;overflow:hidden;gap:1px;background:var(--bg)"></div>
-      </div>
-
-      <div class="stat-grid" style="margin-bottom:12px">
-        <div class="stat-cell"><div class="stat-num" id="zQs1">—</div><div class="stat-lbl">Wichtig</div></div>
-        <div class="stat-cell"><div class="stat-num" id="zQs2">—</div><div class="stat-lbl">Geplant</div></div>
-        <div class="stat-cell"><div class="stat-num" id="zQs3">—</div><div class="stat-lbl">Getrackt</div></div>
-      </div>
-
-      <button class="btn btn-ghost" onclick="zExportCSV()">↓ CSV exportieren</button>
-    </div>
+    <!-- HOME -->
+    <div id="zHome"></div>
 
     <!-- DAY VIEW -->
-    <div id="zDay" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <button class="btn btn-icon" onclick="zChangeDay(-1)">‹</button>
-        <div style="text-align:center">
-          <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;letter-spacing:-0.5px" id="zDayTitle">Heute</div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px" id="zDaySubtitle"></div>
-        </div>
-        <button class="btn btn-icon" onclick="zChangeDay(1)">›</button>
-      </div>
-      <div id="zDayLegend" style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:6px"></div>
-      <div id="zDaySummary" style="padding:8px 0;border-top:1px solid var(--border);margin-bottom:10px"></div>
-      <div style="position:relative;padding-left:48px" id="zTimeline"></div>
-      <button class="btn btn-ghost" onclick="zShowHome()" style="margin-top:12px">← Zurück</button>
-    </div>
+    <div id="zDay" style="display:none"></div>
 
-    <!-- ENTRY VIEW -->
-    <div id="zEntry" style="display:none">
-      <div style="height:2px;background:var(--surface2);margin:-16px -20px 16px;flex-shrink:0">
-        <div style="height:100%;background:var(--accent);transition:width 0.4s" id="zProgressBar" style="width:0%"></div>
-      </div>
-      <div id="zEntryContent"></div>
-    </div>
-
-    <!-- TOAST -->
-    <div id="zToast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--text);color:var(--bg);padding:10px 22px;border-radius:30px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);z-index:9999;white-space:nowrap;pointer-events:none"></div>
-
-    <!-- SHEETS -->
-    <div class="overlay-bg" id="zSheet">
+    <!-- STOP SHEET — Eintrag abschließen -->
+    <div class="overlay-bg" id="zStopSheet">
       <div class="sheet">
         <div class="sheet-handle"></div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="zSheetTime"></div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px" id="zSheetActs"></div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-ghost" onclick="zSheetEdit()">✏️ &nbsp;Bearbeiten</button>
-          <button class="btn btn-danger" onclick="zSheetDelete()">🗑 &nbsp;Löschen</button>
-          <button class="btn btn-ghost" onclick="closeOverlay('zSheet')" style="color:var(--muted)">Abbrechen</button>
+        <div class="sheet-title">Was hast du gemacht?</div>
+
+        <!-- Aktivität -->
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Aktivität</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px" id="zActivityGrid">
+          ${Object.keys(ZEIT_COLORS).map(name => `
+            <button class="chip" id="zAct_${name.replace('/','_')}" onclick="zSelectActivity('${name}')"
+              style="justify-content:flex-start;gap:8px;padding:10px 12px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${zGetColor(name)};flex-shrink:0;display:inline-block"></span>
+              ${name}
+            </button>`).join('')}
+          <button class="chip" onclick="zOpenCustomActivity()" style="grid-column:1/-1;justify-content:center">
+            ✏️ Eigene Eingabe…
+          </button>
+        </div>
+
+        <!-- Mit wem -->
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Mit wem? (optional)</div>
+        <input type="text" class="input" id="zWithWho" placeholder="Name oder alleine…" style="margin-bottom:14px">
+
+        <!-- Stimmung 1-10 -->
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">
+          Stimmung / Energie
+          <span style="color:var(--muted);font-size:10px;margin-left:4px">(7 = Erwartung erfüllt)</span>
+        </div>
+        <div style="display:flex;gap:5px;margin-bottom:6px" id="zMoodBtns">
+          ${[1,2,3,4,5,6,7,8,9,10].map(n => `
+            <button id="zMood${n}" onclick="zSelectMood(${n})"
+              style="flex:1;padding:10px 0;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.12s">
+              ${n}
+            </button>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:16px">
+          <span>😩 Schlecht</span><span>😐 Okay</span><span>🔥 Top</span>
+        </div>
+
+        <!-- Notiz -->
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Notiz (optional)</div>
+        <textarea class="input" id="zNote" placeholder="Was war wichtig? Erkenntnisse?" rows="2" style="resize:none;margin-bottom:16px"></textarea>
+
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="closeOverlay('zStopSheet')" style="flex:0 0 auto;padding:14px 16px">Abbrechen</button>
+          <button class="btn btn-primary" id="zSaveBtn" onclick="zSaveEntry()" disabled>Speichern ✓</button>
         </div>
       </div>
     </div>
 
-    <div class="overlay-bg" id="zPicker">
-      <div class="sheet">
-        <div class="sheet-handle"></div>
-        <div class="sheet-title">Aktivität hinzufügen</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          ${Object.keys(ZEIT_COLORS).map(name =>
-            `<button style="padding:11px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px" onclick="zPickActivity('${name}')">
-              <span style="width:8px;height:8px;border-radius:50%;background:${zGetColor(name)};flex-shrink:0;display:inline-block"></span>${name}
-            </button>`
-          ).join('')}
-          <button style="grid-column:1/-1;padding:10px;background:var(--surface2);border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer" onclick="zOpenCustom()">✏️ Eigene Eingabe…</button>
-        </div>
-        <button class="btn btn-ghost" onclick="closeOverlay('zPicker')">Abbrechen</button>
-      </div>
-    </div>
-
-    <div class="overlay-bg" id="zCustomOverlay">
+    <!-- CUSTOM ACTIVITY -->
+    <div class="overlay-bg" id="zCustomSheet">
       <div class="sheet">
         <div class="sheet-handle"></div>
         <div class="sheet-title">Eigene Aktivität</div>
@@ -119,343 +100,588 @@ function initZeittracker() {
         <button class="btn btn-primary" onclick="zConfirmCustom()">Übernehmen</button>
       </div>
     </div>
+
+    <!-- START SHEET — Aktivität wählen beim Start -->
+    <div class="overlay-bg" id="zStartSheet">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">Was machst du jetzt?</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px" id="zStartGrid">
+          ${Object.keys(ZEIT_COLORS).map(name => `
+            <button class="chip" onclick="zConfirmStart('${name}')"
+              style="justify-content:flex-start;gap:8px;padding:10px 12px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${zGetColor(name)};flex-shrink:0;display:inline-block"></span>
+              ${name}
+            </button>`).join('')}
+          <button class="chip" onclick="zOpenCustomStart()" style="grid-column:1/-1;justify-content:center">
+            ✏️ Eigene Eingabe…
+          </button>
+        </div>
+        <button class="btn btn-ghost" onclick="closeOverlay('zStartSheet')">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- ENTRY DETAIL SHEET -->
+    <div class="overlay-bg" id="zEntrySheet">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="zEntrySheetTime"></div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px" id="zEntrySheetTitle"></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-danger" onclick="zDeleteEntry()">🗑 Löschen</button>
+          <button class="btn btn-ghost" onclick="closeOverlay('zEntrySheet')" style="color:var(--muted)">Schließen</button>
+        </div>
+      </div>
+    </div>
   `;
 
-  zStartCountdown();
-  zRenderMiniBar();
-  zRenderQuickStats();
+  zRenderHome();
+  if (zActiveEntry) zStartLiveTimer();
 }
 
-// ===== VIEWS =====
-function zShowHome() {
-  document.getElementById('zHome').style.display = 'block';
-  document.getElementById('zDay').style.display = 'none';
-  document.getElementById('zEntry').style.display = 'none';
-  zRenderMiniBar();
-  zRenderQuickStats();
+// ===== SELECTED STATE =====
+let zSelectedActivity = null;
+let zSelectedMood = null;
+
+function zSelectActivity(name) {
+  zSelectedActivity = name;
+  document.querySelectorAll('#zActivityGrid .chip').forEach(b => b.classList.remove('sel'));
+  const btn = document.getElementById('zAct_' + name.replace('/', '_'));
+  if (btn) btn.classList.add('sel');
+  zCheckSaveReady();
 }
 
-function zShowDay() {
-  document.getElementById('zHome').style.display = 'none';
-  document.getElementById('zDay').style.display = 'block';
-  document.getElementById('zEntry').style.display = 'none';
-  zViewDate = new Date();
-  zRenderDayView();
-}
-
-function zShowEntry() {
-  document.getElementById('zHome').style.display = 'none';
-  document.getElementById('zDay').style.display = 'none';
-  document.getElementById('zEntry').style.display = 'block';
-}
-
-// ===== COUNTDOWN =====
-function zStartCountdown() {
-  if (zCountdownInterval) clearInterval(zCountdownInterval);
-  zUpdateCountdown();
-  zCountdownInterval = setInterval(zUpdateCountdown, 1000);
-}
-
-function zUpdateCountdown() {
-  const el = document.getElementById('zCountdown');
-  const nextEl = document.getElementById('zNextTime');
-  if (!el) { clearInterval(zCountdownInterval); return; }
-  const now = new Date(), next = zGetNextSlot(now);
-  const diff = Math.max(0, Math.floor((next-now)/1000));
-  const m = Math.floor(diff/60), s = diff%60;
-  el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
-  if (nextEl) nextEl.textContent = formatTime(next);
-  const btn = document.getElementById('zCheckinBtn');
-  if (btn) diff < 120 ? btn.style.animation='pulse 2s infinite' : btn.style.animation='';
-}
-
-function zGetNextSlot(now) {
-  const d = new Date(now);
-  d.getMinutes()<30 ? d.setMinutes(30,0,0) : d.setHours(d.getHours()+1,0,0,0);
-  return d;
-}
-
-function zGetCurrentSlot(now) {
-  const d = new Date(now);
-  if (d.getMinutes()<30) { d.setMinutes(0,0,0); d.setTime(d.getTime()-30*60000); }
-  else { d.setMinutes(0,0,0); }
-  return d;
-}
-
-// ===== MINI BAR =====
-function zRenderMiniBar() {
-  const el = document.getElementById('zMiniBar');
-  if (!el) return;
-  const now = new Date(), dayStart = new Date(now); dayStart.setHours(0,0,0,0);
-  const entries = DB.zeit.getEntries();
-  let html = '';
-  for (let i=0;i<TOTAL_SLOTS;i++) {
-    const ts = dayStart.getTime()+i*SLOT_MIN*60000;
-    const future = ts > now.getTime();
-    const e = entries.find(e=>e.slotTs===ts);
-    if (e && e.activities?.length) {
-      const segs = e.activities.map(a=>`<div style="flex:${a.minutes};background:${zGetColor(a.name)}"></div>`).join('');
-      html += `<div style="flex:1;display:flex;overflow:hidden">${segs}</div>`;
+function zSelectMood(n) {
+  zSelectedMood = n;
+  for (let i=1; i<=10; i++) {
+    const btn = document.getElementById('zMood'+i);
+    if (!btn) continue;
+    if (i === n) {
+      btn.style.background = zMoodColor(n);
+      btn.style.color = '#0f0f0f';
+      btn.style.borderColor = zMoodColor(n);
     } else {
-      html += `<div style="flex:1;background:${future?'transparent':'#1e1e1e'};border:${future?'1px solid #282828':'none'}"></div>`;
+      btn.style.background = 'var(--surface2)';
+      btn.style.color = 'var(--muted)';
+      btn.style.borderColor = 'var(--border)';
     }
   }
-  el.innerHTML = html;
+  zCheckSaveReady();
 }
 
-function zRenderQuickStats() {
-  const now = new Date(), dayStart = new Date(now); dayStart.setHours(0,0,0,0);
-  const entries = DB.zeit.getEntries();
-  const todayEntries = entries.filter(e=>e.slotTs>=dayStart.getTime()&&e.slotTs<dayStart.getTime()+86400000);
-  const allActs = todayEntries.flatMap(e=>e.activities||[]);
-  const n = allActs.length;
-  if (!n) { ['zQs1','zQs2','zQs3'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';}); return; }
-  const imp = Math.round(allActs.filter(a=>a.important==='ja').length/n*100);
-  const plan = Math.round(allActs.filter(a=>a.planned==='geplant').length/n*100);
-  const hours = Math.round(todayEntries.length*SLOT_MIN/60*10)/10;
-  const q1=document.getElementById('zQs1'),q2=document.getElementById('zQs2'),q3=document.getElementById('zQs3');
-  if(q1)q1.textContent=imp+'%';if(q2)q2.textContent=plan+'%';if(q3)q3.textContent=hours+'h';
+function zMoodColor(n) {
+  if (n <= 3) return '#c04040';
+  if (n <= 5) return '#ae7a5a';
+  if (n <= 7) return '#ae9a5a';
+  return '#7a9e5a';
 }
 
-// ===== ENTRY =====
-function zStartEntry(slotTs) {
-  const now = new Date();
-  const slot = slotTs!==null ? new Date(slotTs) : zGetCurrentSlot(now);
-  const slotEnd = new Date(slot.getTime()+SLOT_MIN*60000);
-  zEntrySlotTs = slot.getTime();
-  const existing = DB.zeit.getEntries().find(e=>e.slotTs===zEntrySlotTs);
-  zEntryActivities = existing ? JSON.parse(JSON.stringify(existing.activities)) : [];
-  zShowEntry();
-  zRenderEntryUI();
+function zCheckSaveReady() {
+  const btn = document.getElementById('zSaveBtn');
+  if (btn) btn.disabled = !(zSelectedActivity && zSelectedMood);
 }
 
-function zMinsUsed() { return zEntryActivities.reduce((s,a)=>s+a.minutes,0); }
-function zMinsLeft() { return SLOT_MIN - zMinsUsed(); }
-
-function zRenderEntryUI() {
-  const slot = new Date(zEntrySlotTs);
-  const slotEnd = new Date(zEntrySlotTs+SLOT_MIN*60000);
-  const left = zMinsLeft();
-
-  let barHtml = zEntryActivities.map(a=>`<div style="flex:${a.minutes};background:${zGetColor(a.name)};height:100%;border-radius:3px"></div>`).join('');
-  if(left>0) barHtml+=`<div style="flex:${left};height:100%;background:var(--surface2)"></div>`;
-
-  const rows = zEntryActivities.map((act,idx)=>{
-    const maxForThis = act.minutes+left;
-    return `<div class="card" style="margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
-          <div style="width:8px;height:8px;border-radius:50%;background:${zGetColor(act.name)};flex-shrink:0"></div>
-          ${act.name}
-        </div>
-        <button onclick="zRemoveAct(${idx})" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px">✕</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent);min-width:28px" id="zMV${idx}">${act.minutes}</div>
-        <div style="font-size:11px;color:var(--muted)">min</div>
-        <input type="range" min="1" max="${maxForThis}" step="1" value="${act.minutes}" oninput="zUpdateMins(${idx},this.value)" ${act.locked?'disabled':''} style="flex:1">
-        <button onclick="zToggleLock(${idx})" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:${act.locked?'var(--accent)':'var(--muted)'};font-size:13px;cursor:pointer;flex-shrink:0">${act.locked?'🔒':'🔓'}</button>
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:8px">
-        <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:5px">Wichtig?</div>
-          <div style="display:flex;gap:6px">
-            ${['ja','teilweise','nein'].map(v=>`<button class="chip ${act.important===v?'sel':''}" onclick="zSetQ(${idx},'important','${v}')">${v==='ja'?'Ja':v==='teilweise'?'Teilweise':'Nein'}</button>`).join('')}
-          </div>
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:5px">Ziel-fit?</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${['ja','indirekt','nein'].map(v=>`<button class="chip ${act.goals===v?'sel':''}" onclick="zSetQ(${idx},'goals','${v}')">${v==='ja'?'🎯 Ja':v==='indirekt'?'↪ Indirekt':'Nein'}</button>`).join('')}
-          </div>
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:5px">Geplant?</div>
-          <div style="display:flex;gap:6px">
-            ${['geplant','reaktiv'].map(v=>`<button class="chip ${act.planned===v?'sel':''}" onclick="zSetQ(${idx},'planned','${v}')">${v==='geplant'?'📋 Geplant':'⚡ Reaktiv'}</button>`).join('')}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  const allOk = zEntryActivities.length>0 && zEntryActivities.every(a=>a.name&&a.important&&a.goals&&a.planned);
-
-  document.getElementById('zEntryContent').innerHTML = `
-    <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px">Check-In</div>
-    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--accent);margin-bottom:14px">
-      🕐 ${formatTime(slot)} – ${formatTime(slotEnd)}
-    </div>
-    <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px">
-        <span>Zeit verteilt</span><span style="color:var(--text)">${left>0?left+' min übrig':'30 min voll ✓'}</span>
-      </div>
-      <div style="height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;display:flex;gap:1px">${barHtml}</div>
-    </div>
-    ${rows}
-    <button class="btn btn-ghost" onclick="openOverlay('zPicker')" ${left<=0?'disabled':''} style="margin-bottom:10px;${left<=0?'opacity:0.3':''}"}>+ Aktivität hinzufügen</button>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-ghost" onclick="${zReturnToDay?'zShowDay()':'zShowHome()'}" style="flex:0 0 auto;padding:14px 16px">Abbrechen</button>
-      <button class="btn btn-primary" onclick="zSaveEntry()" ${!allOk?'disabled':''} style="${!allOk?'opacity:0.25':''}">Speichern ✓</button>
-    </div>
-  `;
+function zOpenCustomActivity() {
+  closeOverlay('zStopSheet');
+  openOverlay('zCustomSheet');
+  setTimeout(() => document.getElementById('zCustomInput')?.focus(), 100);
 }
 
-function zUpdateMins(idx,val) {
-  if(zEntryActivities[idx].locked) return;
-  const newVal=parseInt(val), diff=newVal-zEntryActivities[idx].minutes;
-  if(zMinsLeft()-diff<0) return;
-  zEntryActivities[idx].minutes=newVal;
-  const el=document.getElementById('zMV'+idx); if(el) el.textContent=newVal;
-  zRenderEntryUI();
+function zConfirmCustom() {
+  const val = document.getElementById('zCustomInput')?.value.trim();
+  if (!val) return;
+  document.getElementById('zCustomInput').value = '';
+  closeOverlay('zCustomSheet');
+  openOverlay('zStopSheet');
+  zSelectedActivity = val;
+  zCheckSaveReady();
+  // Show as selected text
+  const grid = document.getElementById('zActivityGrid');
+  if (grid) {
+    document.querySelectorAll('#zActivityGrid .chip').forEach(b => b.classList.remove('sel'));
+    // Add temp chip
+    const existing = document.getElementById('zCustomActBtn');
+    if (existing) existing.remove();
+    const btn = document.createElement('button');
+    btn.id = 'zCustomActBtn';
+    btn.className = 'chip sel';
+    btn.style.cssText = 'justify-content:flex-start;gap:8px;padding:10px 12px';
+    btn.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#707070;flex-shrink:0;display:inline-block"></span>${val}`;
+    btn.onclick = () => {};
+    grid.insertBefore(btn, grid.firstChild);
+  }
 }
-function zToggleLock(idx) { zEntryActivities[idx].locked=!zEntryActivities[idx].locked; zRenderEntryUI(); }
-function zRemoveAct(idx) { zEntryActivities.splice(idx,1); zRenderEntryUI(); }
-function zSetQ(idx,field,val) { zEntryActivities[idx][field]=val; zRenderEntryUI(); }
+
+// ===== START =====
+function zOpenStart() {
+  openOverlay('zStartSheet');
+}
+
+function zOpenCustomStart() {
+  closeOverlay('zStartSheet');
+  const overlay = document.createElement('div');
+  // Reuse custom sheet with different confirm
+  document.getElementById('zCustomInput').value = '';
+  openOverlay('zCustomSheet');
+  // Override confirm to start
+  window._zCustomConfirmMode = 'start';
+  setTimeout(() => document.getElementById('zCustomInput')?.focus(), 100);
+}
+
+// Override confirmCustom based on mode
+const _zOrigConfirm = zConfirmCustom;
+
+function zConfirmCustom() {
+  if (window._zCustomConfirmMode === 'start') {
+    const val = document.getElementById('zCustomInput')?.value.trim();
+    if (!val) return;
+    document.getElementById('zCustomInput').value = '';
+    closeOverlay('zCustomSheet');
+    window._zCustomConfirmMode = null;
+    zConfirmStart(val);
+    return;
+  }
+  _zOrigConfirm();
+}
+
+function zConfirmStart(activity) {
+  closeOverlay('zStartSheet');
+  zActiveEntry = {
+    activity,
+    startTs: Date.now(),
+    withWho: '',
+  };
+  localStorage.setItem('los_zeit_active', JSON.stringify(zActiveEntry));
+  zStartLiveTimer();
+  zRenderHome();
+  showToast(`${activity} gestartet`);
+}
+
+// ===== LIVE TIMER =====
+function zStartLiveTimer() {
+  if (zTimerInterval) clearInterval(zTimerInterval);
+  zTimerInterval = setInterval(() => {
+    const el = document.getElementById('zLiveTimer');
+    if (!el || !zActiveEntry) return;
+    const elapsed = Date.now() - zActiveEntry.startTs;
+    el.textContent = zFormatElapsed(elapsed);
+  }, 1000);
+}
+
+function zFormatElapsed(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+// ===== STOP =====
+function zOpenStop() {
+  // Reset selections
+  zSelectedActivity = null;
+  zSelectedMood = null;
+  document.querySelectorAll('#zActivityGrid .chip').forEach(b => b.classList.remove('sel'));
+  for (let i=1; i<=10; i++) {
+    const btn = document.getElementById('zMood'+i);
+    if (btn) {
+      btn.style.background = 'var(--surface2)';
+      btn.style.color = 'var(--muted)';
+      btn.style.borderColor = 'var(--border)';
+    }
+  }
+  document.getElementById('zWithWho').value = '';
+  document.getElementById('zNote').value = '';
+
+  // Pre-select activity if known from start
+  if (zActiveEntry?.activity) {
+    zSelectActivity(zActiveEntry.activity);
+  }
+
+  const btn = document.getElementById('zSaveBtn');
+  if (btn) btn.disabled = true;
+
+  openOverlay('zStopSheet');
+}
 
 function zSaveEntry() {
-  DB.zeit.addEntry({ slotTs:zEntrySlotTs, ts:Date.now(), id:Math.random().toString(36).slice(2), activities:zEntryActivities });
-  zReturnToDay ? zShowDay() : zShowHome();
-  zReturnToDay=false;
+  if (!zActiveEntry || !zSelectedActivity || !zSelectedMood) return;
+
+  const endTs = Date.now();
+  const entry = {
+    id: Math.random().toString(36).slice(2),
+    activity: zSelectedActivity,
+    startTs: zActiveEntry.startTs,
+    endTs,
+    durationMs: endTs - zActiveEntry.startTs,
+    withWho: document.getElementById('zWithWho')?.value.trim() || '',
+    mood: zSelectedMood,
+    note: document.getElementById('zNote')?.value.trim() || '',
+  };
+
+  // Save
+  const entries = zGetEntries();
+  entries.unshift(entry);
+  localStorage.setItem('los_mario_entries', JSON.stringify(entries));
+
+  // Clear active
+  zActiveEntry = null;
+  localStorage.removeItem('los_zeit_active');
+  clearInterval(zTimerInterval);
+  zTimerInterval = null;
+
+  closeOverlay('zStopSheet');
+  zRenderHome();
   showToast('Eingetragen ✓');
 }
 
-// ===== PICKER =====
-function zPickActivity(name) {
-  closeOverlay('zPicker');
-  const left=zMinsLeft(); if(left<=0) return;
-  zEntryActivities.push({name,minutes:left,important:'',goals:'',planned:''});
-  zRenderEntryUI();
-}
-function zOpenCustom() { closeOverlay('zPicker'); openOverlay('zCustomOverlay'); setTimeout(()=>document.getElementById('zCustomInput')?.focus(),100); }
-function zConfirmCustom() {
-  const val=document.getElementById('zCustomInput')?.value.trim(); if(!val) return;
-  document.getElementById('zCustomInput').value='';
-  closeOverlay('zCustomOverlay');
-  const left=zMinsLeft(); if(left<=0) return;
-  zEntryActivities.push({name:val,minutes:left,important:'',goals:'',planned:''});
-  zRenderEntryUI();
+// ===== DATA =====
+function zGetEntries() {
+  const raw = localStorage.getItem('los_mario_entries');
+  return raw ? JSON.parse(raw) : [];
 }
 
-// ===== SHEET =====
-function zOpenSheet(slotTs) {
-  zSheetSlotTs=slotTs;
-  const e=DB.zeit.getEntries().find(e=>e.slotTs===slotTs); if(!e) return;
-  const d=new Date(slotTs), end=new Date(slotTs+SLOT_MIN*60000);
-  const t=document.getElementById('zSheetTime'); if(t) t.textContent=`${formatTime(d)} – ${formatTime(end)}`;
-  const a=document.getElementById('zSheetActs');
-  if(a) a.innerHTML=(e.activities||[]).map(act=>`<div class="chip"><span style="width:7px;height:7px;border-radius:50%;background:${zGetColor(act.name)};display:inline-block"></span>${act.name} · ${act.minutes} min</div>`).join('');
-  openOverlay('zSheet');
+// ===== HOME =====
+function zRenderHome() {
+  zCurrentView = 'home';
+  const homeEl = document.getElementById('zHome');
+  const dayEl = document.getElementById('zDay');
+  if (homeEl) homeEl.style.display = 'block';
+  if (dayEl) dayEl.style.display = 'none';
+
+  const now = new Date();
+  const entries = zGetEntries();
+  const todayEntries = entries.filter(e => new Date(e.startTs).toDateString() === now.toDateString());
+  const todayMs = todayEntries.reduce((s,e) => s+e.durationMs, 0);
+
+  homeEl.innerHTML = `
+    <!-- AKTIVER TIMER -->
+    ${zActiveEntry ? `
+      <div style="background:var(--surface);border:1px solid var(--accent);border-radius:18px;padding:24px;text-align:center;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Läuft gerade</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(zActiveEntry.activity)}"></div>
+          <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">${zActiveEntry.activity}</div>
+        </div>
+        <div style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:var(--accent);letter-spacing:-3px;line-height:1" id="zLiveTimer">
+          ${zFormatElapsed(Date.now() - zActiveEntry.startTs)}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">
+          gestartet um ${new Date(zActiveEntry.startTs).toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})}
+        </div>
+        <button class="btn btn-primary" onclick="zOpenStop()" style="margin-top:16px;background:var(--danger);border-color:var(--danger)">
+          ⏹ Stoppen
+        </button>
+      </div>` : `
+      <button class="btn btn-primary" onclick="zOpenStart()" style="margin-bottom:14px;font-size:18px;padding:20px">
+        ▶ Aktivität starten
+      </button>`
+    }
+
+    <!-- HEUTE STATS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="stat-cell">
+        <div class="stat-num">${zFormatHours(todayMs)}</div>
+        <div class="stat-lbl">Heute</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">${todayEntries.length}</div>
+        <div class="stat-lbl">Blöcke</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">${todayEntries.length ? Math.round(todayEntries.reduce((s,e)=>s+e.mood,0)/todayEntries.length*10)/10 : '—'}</div>
+        <div class="stat-lbl">Ø Stimmung</div>
+      </div>
+    </div>
+
+    <!-- TAGES-VORSCHAU -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;margin-bottom:14px" onclick="zShowDay()">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Heute im Überblick</div>
+        <div style="font-size:11px;color:var(--accent)">Details →</div>
+      </div>
+      ${zRenderMiniTimeline(todayEntries)}
+    </div>
+
+    <!-- LETZTE EINTRÄGE -->
+    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Letzte Einträge</div>
+    ${todayEntries.length === 0 ? `
+      <div class="empty-state" style="padding:32px 0">
+        <div class="empty-icon">⏱</div>
+        <div class="empty-title">Noch nichts heute</div>
+        <div class="empty-sub">Starte deine erste Aktivität</div>
+      </div>` : `
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${todayEntries.slice(0,8).map(e => zRenderEntryRow(e)).join('')}
+      </div>`
+    }
+
+    <!-- EXPORT -->
+    <div style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="zExportCSV()">↓ CSV exportieren</button>
+    </div>
+  `;
+
+  if (zActiveEntry) zStartLiveTimer();
 }
-function zSheetEdit() { const ts=zSheetSlotTs; closeOverlay('zSheet'); zReturnToDay=true; zStartEntry(ts); }
-function zSheetDelete() {
-  if(zSheetSlotTs===null) return;
-  DB.zeit.deleteEntry(zSheetSlotTs);
-  closeOverlay('zSheet');
-  zRenderDayView();
+
+function zFormatHours(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function zRenderMiniTimeline(entries) {
+  if (!entries.length) return `<div style="height:16px;background:var(--surface2);border-radius:5px"></div>`;
+
+  const now = new Date();
+  const dayStart = new Date(now); dayStart.setHours(0,0,0,0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalNowMs = now.getTime() - dayStart.getTime();
+
+  let segments = '';
+  let lastEnd = dayStart.getTime();
+
+  const sorted = [...entries].sort((a,b) => a.startTs - b.startTs);
+
+  sorted.forEach(e => {
+    const gap = e.startTs - lastEnd;
+    if (gap > 0) {
+      const pct = (gap / dayMs) * 100;
+      segments += `<div style="flex:${pct};background:#1a1a1a;min-width:1px"></div>`;
+    }
+    const dur = e.durationMs;
+    const pct = (dur / dayMs) * 100;
+    segments += `<div style="flex:${pct};background:${zGetColor(e.activity)};min-width:2px;border-radius:2px" title="${e.activity}"></div>`;
+    lastEnd = e.endTs;
+  });
+
+  // Rest bis jetzt
+  const remaining = now.getTime() - lastEnd;
+  if (remaining > 0) {
+    const pct = (remaining / dayMs) * 100;
+    segments += `<div style="flex:${pct};background:#1a1a1a"></div>`;
+  }
+
+  return `<div style="display:flex;height:16px;border-radius:5px;overflow:hidden;gap:1px;background:var(--bg)">${segments}</div>`;
+}
+
+function zRenderEntryRow(e) {
+  const start = new Date(e.startTs);
+  const end = new Date(e.endTs);
+  return `
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:11px;cursor:pointer"
+      onclick="zOpenEntrySheet('${e.id}')">
+      <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(e.activity)};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.activity}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">
+          ${start.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})} – ${end.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})}
+          ${e.withWho ? ` · ${e.withWho}` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <div style="font-size:11px;color:var(--muted)">${zFormatHours(e.durationMs)}</div>
+        <div style="font-size:11px;padding:2px 7px;border-radius:10px;background:${zMoodColor(e.mood)}20;color:${zMoodColor(e.mood)};border:1px solid ${zMoodColor(e.mood)}40">
+          ${e.mood}/10
+        </div>
+      </div>
+    </div>`;
+}
+
+// ===== ENTRY SHEET =====
+let zSheetEntryId = null;
+
+function zOpenEntrySheet(id) {
+  zSheetEntryId = id;
+  const entries = zGetEntries();
+  const e = entries.find(e => e.id === id);
+  if (!e) return;
+
+  const start = new Date(e.startTs);
+  const end = new Date(e.endTs);
+  const timeStr = `${start.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})} – ${end.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})} · ${zFormatHours(e.durationMs)}`;
+
+  document.getElementById('zEntrySheetTime').textContent = timeStr;
+  document.getElementById('zEntrySheetTitle').innerHTML = `
+    <div style="width:10px;height:10px;border-radius:50%;background:${zGetColor(e.activity)};flex-shrink:0"></div>
+    ${e.activity}
+    ${e.withWho ? `<span style="font-size:13px;color:var(--muted);font-weight:400">mit ${e.withWho}</span>` : ''}
+    <span style="margin-left:auto;font-size:14px;padding:3px 8px;border-radius:10px;background:${zMoodColor(e.mood)}20;color:${zMoodColor(e.mood)}">${e.mood}/10</span>
+  `;
+
+  openOverlay('zEntrySheet');
+}
+
+function zDeleteEntry() {
+  if (!zSheetEntryId) return;
+  const entries = zGetEntries().filter(e => e.id !== zSheetEntryId);
+  localStorage.setItem('los_mario_entries', JSON.stringify(entries));
+  closeOverlay('zEntrySheet');
+  if (zCurrentView === 'day') zRenderDayView();
+  else zRenderHome();
   showToast('Gelöscht');
 }
 
 // ===== DAY VIEW =====
-function zChangeDay(dir) { zViewDate=new Date(zViewDate); zViewDate.setDate(zViewDate.getDate()+dir); zRenderDayView(); }
+function zShowDay() {
+  zCurrentView = 'day';
+  document.getElementById('zHome').style.display = 'none';
+  document.getElementById('zDay').style.display = 'block';
+  zViewDate = new Date();
+  zRenderDayView();
+}
+
+function zChangeDay(dir) {
+  zViewDate = new Date(zViewDate);
+  zViewDate.setDate(zViewDate.getDate() + dir);
+  zRenderDayView();
+}
 
 function zRenderDayView() {
-  const now=new Date(), isToday=zViewDate.toDateString()===now.toDateString();
-  const titleEl=document.getElementById('zDayTitle'), subEl=document.getElementById('zDaySubtitle');
-  if(titleEl) titleEl.textContent=isToday?'Heute':zViewDate.toLocaleDateString('de',{weekday:'long',day:'numeric',month:'long'});
-  if(subEl) subEl.textContent=zViewDate.toLocaleDateString('de',{day:'numeric',month:'long',year:'numeric'});
+  const el = document.getElementById('zDay');
+  if (!el) return;
 
-  const dayStart=new Date(zViewDate); dayStart.setHours(0,0,0,0);
-  const tl=document.getElementById('zTimeline'); if(!tl) return;
-  tl.style.height=(TOTAL_SLOTS*SLOT_PX)+'px';
+  const now = new Date();
+  const isToday = zViewDate.toDateString() === now.toDateString();
+  const entries = zGetEntries().filter(e =>
+    new Date(e.startTs).toDateString() === zViewDate.toDateString()
+  );
 
-  const entries=DB.zeit.getEntries();
-  let html='';
-  for(let h=0;h<=24;h++){
-    const top=h*2*SLOT_PX;
-    html+=`<div style="position:absolute;left:-8px;right:0;height:1px;background:var(--border);top:${top}px;pointer-events:none"></div>`;
-    if(h<24) html+=`<div style="position:absolute;left:-40px;font-size:10px;color:var(--muted);width:36px;text-align:right;top:${top}px;transform:translateY(-50%);pointer-events:none">${h.toString().padStart(2,'0')}:00</div>`;
+  const dayMs = entries.reduce((s,e) => s+e.durationMs, 0);
+  const avgMood = entries.length ? Math.round(entries.reduce((s,e)=>s+e.mood,0)/entries.length*10)/10 : null;
+
+  // Zeitlinie aufbauen — 24h von 0 bis 24
+  const dayStart = new Date(zViewDate); dayStart.setHours(0,0,0,0);
+  const HOUR_PX = 60;
+  const totalPx = 24 * HOUR_PX;
+
+  let timelineHtml = '';
+
+  // Stundenlinien
+  for (let h=0; h<=24; h++) {
+    const top = h * HOUR_PX;
+    timelineHtml += `<div style="position:absolute;left:40px;right:0;height:1px;background:var(--border);top:${top}px;pointer-events:none"></div>`;
+    if (h < 24) timelineHtml += `<div style="position:absolute;left:0;font-size:10px;color:var(--muted);width:36px;text-align:right;top:${top}px;transform:translateY(-50%);pointer-events:none">${h.toString().padStart(2,'0')}:00</div>`;
   }
-  for(let i=0;i<TOTAL_SLOTS;i++){
-    const slotTs=dayStart.getTime()+i*SLOT_MIN*60000;
-    const slotDate=new Date(slotTs);
-    if(isToday&&slotTs>now.getTime()) continue;
-    const e=entries.find(e=>e.slotTs===slotTs);
-    const top=i*SLOT_PX, h=SLOT_PX-2;
-    if(e&&e.activities?.length){
-      const segs=e.activities.map(a=>`<div style="flex:${a.minutes};height:100%;display:flex;flex-direction:column;justify-content:center;padding:4px 6px;overflow:hidden;background:${zGetColor(a.name)}"><div style="font-size:10px;font-weight:500;color:#f0ede6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div><div style="font-size:9px;color:rgba(240,237,230,0.6)">${a.minutes}m</div></div>`).join('');
-      html+=`<div style="position:absolute;left:0;right:0;top:${top}px;height:${h}px;display:flex;gap:1px;border-radius:6px;overflow:hidden;cursor:pointer" onclick="zOpenSheet(${slotTs})">${segs}</div>`;
-    } else {
-      const slotEnd=new Date(slotTs+SLOT_MIN*60000);
-      html+=`<div style="position:absolute;left:0;right:0;top:${top}px;height:${h}px;cursor:pointer" onclick="zFillSlot(${slotTs})"><div style="height:100%;background:#161616;border:1px dashed #2a2a2a;border-radius:6px;display:flex;align-items:center;padding:0 8px"><div style="font-size:10px;color:#303030">${formatTime(slotDate)} – ${formatTime(slotEnd)}</div></div></div>`;
+
+  // Einträge
+  const sorted = [...entries].sort((a,b) => a.startTs-b.startTs);
+  sorted.forEach(e => {
+    const startMin = (e.startTs - dayStart.getTime()) / 60000;
+    const durMin = e.durationMs / 60000;
+    const top = (startMin / 60) * HOUR_PX;
+    const height = Math.max((durMin / 60) * HOUR_PX, 20);
+
+    timelineHtml += `
+      <div style="position:absolute;left:48px;right:0;top:${top}px;height:${height}px;border-radius:8px;overflow:hidden;cursor:pointer" onclick="zOpenEntrySheet('${e.id}')">
+        <div style="height:100%;background:${zGetColor(e.activity)};padding:5px 8px;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:11px;font-weight:500;color:#f0ede6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.activity}</div>
+          ${height > 32 ? `<div style="font-size:9px;color:rgba(240,237,230,0.7);margin-top:1px">${zFormatHours(e.durationMs)}${e.withWho?' · '+e.withWho:''} · ${e.mood}/10</div>` : ''}
+        </div>
+      </div>`;
+  });
+
+  // Jetzt-Linie
+  if (isToday) {
+    const nowMin = (now.getTime() - dayStart.getTime()) / 60000;
+    const top = (nowMin / 60) * HOUR_PX;
+    timelineHtml += `<div style="position:absolute;left:40px;right:0;height:2px;background:var(--danger);top:${top}px;z-index:10;pointer-events:none"></div>`;
+    timelineHtml += `<div style="position:absolute;left:34px;width:10px;height:10px;border-radius:50%;background:var(--danger);top:${top}px;transform:translateY(-50%);z-index:10;pointer-events:none"></div>`;
+  }
+
+  el.innerHTML = `
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <button class="btn btn-icon" onclick="zRenderHome()">←</button>
+      <button class="btn btn-icon" onclick="zChangeDay(-1)">‹</button>
+      <div style="flex:1;text-align:center">
+        <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;letter-spacing:-0.5px">
+          ${isToday ? 'Heute' : zViewDate.toLocaleDateString('de',{weekday:'long',day:'numeric',month:'long'})}
+        </div>
+        <div style="font-size:10px;color:var(--muted)">
+          ${zViewDate.toLocaleDateString('de',{day:'numeric',month:'long',year:'numeric'})}
+        </div>
+      </div>
+      <button class="btn btn-icon" onclick="zChangeDay(1)">›</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="stat-cell"><div class="stat-num">${zFormatHours(dayMs)}</div><div class="stat-lbl">Getrackt</div></div>
+      <div class="stat-cell"><div class="stat-num">${entries.length}</div><div class="stat-lbl">Blöcke</div></div>
+      <div class="stat-cell"><div class="stat-num">${avgMood || '—'}</div><div class="stat-lbl">Ø Stimmung</div></div>
+    </div>
+
+    <!-- Aktivitäts-Legende -->
+    ${zRenderDayLegend(entries)}
+
+    <!-- Zeitlinie -->
+    <div style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch">
+      <div style="position:relative;padding-left:48px;height:${totalPx}px;margin-bottom:20px">
+        ${timelineHtml}
+      </div>
+    </div>
+  `;
+
+  // Scroll zu aktueller Zeit oder frühem Morgen
+  setTimeout(() => {
+    const scr = el.querySelector('div[style*="overflow-y:auto"]');
+    if (scr) {
+      if (isToday) {
+        const nowMin = (now.getTime() - dayStart.getTime()) / 60000;
+        scr.scrollTop = Math.max(0, (nowMin/60)*HOUR_PX - 150);
+      } else if (entries.length) {
+        const firstMin = (sorted[0].startTs - dayStart.getTime()) / 60000;
+        scr.scrollTop = Math.max(0, (firstMin/60)*HOUR_PX - 60);
+      } else {
+        scr.scrollTop = 8 * HOUR_PX; // 8 Uhr
+      }
     }
-  }
-  if(isToday){
-    const nowMin=now.getHours()*60+now.getMinutes(), top=nowMin*PX_PER_MIN;
-    html+=`<div style="position:absolute;left:-8px;right:0;height:2px;background:var(--danger);top:${top}px;z-index:10;pointer-events:none"></div>`;
-    html+=`<div style="position:absolute;left:-14px;width:10px;height:10px;border-radius:50%;background:var(--danger);top:${top}px;transform:translateY(-50%);z-index:10;pointer-events:none"></div>`;
-  }
-  tl.innerHTML=html;
-  setTimeout(()=>{
-    const scr=tl.closest('.screen-content');
-    if(scr&&isToday) scr.scrollTop=Math.max(0,(now.getHours()*60+now.getMinutes())*PX_PER_MIN-120);
-    else if(scr) scr.scrollTop=0;
-  },50);
-
-  zRenderDayLegend(dayStart, entries);
-  zRenderDaySummary(dayStart, isToday, entries);
+  }, 50);
 }
 
-function zFillSlot(slotTs) { zReturnToDay=true; zStartEntry(slotTs); }
-
-function zRenderDayLegend(dayStart, entries) {
-  const el=document.getElementById('zDayLegend'); if(!el) return;
-  const used={};
-  for(let i=0;i<TOTAL_SLOTS;i++){
-    const e=entries.find(e=>e.slotTs===dayStart.getTime()+i*SLOT_MIN*60000);
-    if(e) e.activities?.forEach(a=>{used[a.name]=true;});
-  }
-  el.innerHTML=Object.keys(used).map(a=>`<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)"><div style="width:7px;height:7px;border-radius:50%;background:${zGetColor(a)}"></div>${a}</div>`).join('')+
-    `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)"><div style="width:7px;height:7px;border-radius:50%;background:#1e1e1e;border:1px solid #333"></div>Ungetrackt</div>`;
-}
-
-function zRenderDaySummary(dayStart, isToday, entries) {
-  const el=document.getElementById('zDaySummary'); if(!el) return;
-  const now=new Date(); const actMins={}; let tracked=0,untracked=0;
-  for(let i=0;i<TOTAL_SLOTS;i++){
-    const slotTs=dayStart.getTime()+i*SLOT_MIN*60000;
-    if(isToday&&slotTs>now.getTime()) continue;
-    const e=entries.find(e=>e.slotTs===slotTs);
-    if(e&&e.activities?.length){e.activities.forEach(a=>{actMins[a.name]=(actMins[a.name]||0)+a.minutes;});tracked++;}
-    else untracked++;
-  }
-  const total=tracked+untracked; if(!total){el.innerHTML='';return;}
-  const segs=Object.entries(actMins).map(([a,m])=>`<div style="flex:${m};background:${zGetColor(a)}"></div>`).join('');
-  const uSeg=untracked?`<div style="flex:${untracked*SLOT_MIN};background:#1e1e1e"></div>`:'';
-  el.innerHTML=`<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px;background:var(--surface2);margin-bottom:8px">${segs}${uSeg}</div>
-    <div style="display:flex;gap:14px">
-      <div style="font-size:11px;color:var(--muted)">Getrackt: <span style="color:var(--text)">${Math.round(tracked*SLOT_MIN/60*10)/10}h</span></div>
-      <div style="font-size:11px;color:var(--muted)">Offen: <span style="color:var(--text)">${Math.round(untracked*SLOT_MIN/60*10)/10}h</span></div>
-      <div style="font-size:11px;color:var(--muted)">Slots: <span style="color:var(--text)">${tracked}/${total}</span></div>
+function zRenderDayLegend(entries) {
+  const used = {};
+  entries.forEach(e => { used[e.activity] = true; });
+  if (!Object.keys(used).length) return '';
+  return `
+    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:10px">
+      ${Object.keys(used).map(a => `
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
+          <div style="width:7px;height:7px;border-radius:50%;background:${zGetColor(a)}"></div>${a}
+        </div>`).join('')}
     </div>`;
 }
 
 // ===== EXPORT =====
 function zExportCSV() {
-  const entries=DB.zeit.getEntries();
-  if(!entries.length){showToast('Keine Daten');return;}
-  const header=['Datum','Slot','Aktivität','Minuten','Wichtig','Ziel-fit','Geplant/Reaktiv'];
-  const rows=[];
-  entries.forEach(e=>{
-    const d=new Date(e.slotTs||e.ts);
-    (e.activities||[]).forEach(a=>{
-      rows.push([d.toLocaleDateString('de'),formatTime(d),a.name,a.minutes,a.important,a.goals,a.planned].map(v=>`"${v}"`).join(','));
-    });
+  const entries = zGetEntries();
+  if (!entries.length) { showToast('Keine Daten'); return; }
+  const header = ['Datum','Start','Ende','Dauer (min)','Aktivität','Mit wem','Stimmung','Notiz'];
+  const rows = entries.map(e => {
+    const start = new Date(e.startTs);
+    const end = new Date(e.endTs);
+    return [
+      start.toLocaleDateString('de'),
+      start.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}),
+      end.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}),
+      Math.round(e.durationMs/60000),
+      e.activity,
+      e.withWho||'',
+      e.mood,
+      e.note||''
+    ].map(v => `"${v}"`).join(',');
   });
-  const csv=[header.join(','),...rows].join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=`zeittracker_${new Date().toLocaleDateString('de',{month:'long',year:'numeric'})}.csv`;
-  a.click(); URL.revokeObjectURL(url); showToast('CSV exportiert ✓');
+  const csv = [header.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `zeittracker_${new Date().toLocaleDateString('de',{month:'long',year:'numeric'})}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportiert ✓');
 }
