@@ -4,22 +4,15 @@
 
 // ===== NAVIGATION =====
 function navigate(screenId) {
-  // Alle Screens ausblenden
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-
-  // Gewünschten Screen anzeigen
   const screen = document.getElementById('screen-' + screenId);
   if (screen) {
     screen.classList.add('active');
     screen.querySelector('.screen-content')?.classList.add('animate-up');
   }
-
-  // Nav-Button aktivieren
   const btn = document.querySelector(`[data-screen="${screenId}"]`);
   if (btn) btn.classList.add('active');
-
-  // Screen-spezifische Initialisierung
   if (screenId === 'dashboard') initDashboard?.();
   if (screenId === 'zeit') initZeittracker?.();
   if (screenId === 'gtd') initGTD?.();
@@ -27,11 +20,72 @@ function navigate(screenId) {
   if (screenId === 'stats') initStats?.();
 }
 
-// Nav-Buttons mit Klick belegen
 document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    navigate(btn.dataset.screen);
-  });
+  btn.addEventListener('click', () => navigate(btn.dataset.screen));
+});
+
+// ===== GLOBALES OVERLAY SYSTEM =====
+// Jedes Overlay egal ob .overlay-bg oder eigene div läuft hier durch
+// Nav-Bar wird immer ausgeblendet wenn irgendwas offen ist
+
+function navHide() {
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.setProperty('display', 'none', 'important');
+}
+
+function navShow() {
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.removeProperty('display');
+}
+
+function anyOverlayOpen() {
+  // Prüft sowohl .overlay-bg.open als auch custom z-index Overlays im Zeittracker
+  const classOpen = document.querySelector('.overlay-bg.open');
+  const styleOpen = ['zStopOverlay','zStartOverlay','zCustomOverlay','zEntryOverlay']
+    .some(id => {
+      const el = document.getElementById(id);
+      return el && el.style.display === 'flex';
+    });
+  const gtdOpen = ['gNewItemOverlay','gNewProjectOverlay','gItemSheet','gMoveSheet']
+    .some(id => document.getElementById(id)?.classList.contains('open'));
+  const gymOpen = ['gymExercisePicker','gymSetSheet']
+    .some(id => document.getElementById(id)?.classList.contains('open'));
+  return classOpen || styleOpen || gtdOpen || gymOpen;
+}
+
+// Für .overlay-bg Klassen (GTD, Gym etc.)
+function openOverlay(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('open');
+  navHide();
+}
+
+function closeOverlay(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('open');
+  setTimeout(() => { if (!anyOverlayOpen()) navShow(); }, 50);
+}
+
+// Für Zeittracker custom Overlays (display:flex)
+function zShowOverlay(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'flex';
+  navHide();
+}
+
+function zHideOverlay(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'none';
+  setTimeout(() => { if (!anyOverlayOpen()) navShow(); }, 50);
+}
+
+// Schließen wenn daneben getippt
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('overlay-bg')) closeOverlay(e.target.id);
 });
 
 // ===== TOAST =====
@@ -54,67 +108,18 @@ function showToast(msg) {
 function formatDate(date) {
   return date.toLocaleDateString('de', { weekday:'long', day:'numeric', month:'long' });
 }
-
 function formatTime(date) {
   return date.toLocaleTimeString('de', { hour:'2-digit', minute:'2-digit' });
 }
-
 function formatDateShort(date) {
   return date.toLocaleDateString('de', { day:'numeric', month:'short' });
 }
 
-// ===== OVERLAY HELPER =====
-function openOverlay(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  document.body.style.position = 'fixed';
-  document.body.style.width = '100%';
-  // Nav-Bar verstecken damit Sheet voll genutzt werden kann
-  const nav = document.querySelector('.bottom-nav');
-  if (nav) nav.style.display = 'none';
-}
-
-function closeOverlay(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove('open');
-  const anyOpen = document.querySelector('.overlay-bg.open');
-  if (!anyOpen) {
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
-    // Nav-Bar wieder anzeigen
-    const nav = document.querySelector('.bottom-nav');
-    if (nav) nav.style.display = '';
-  }
-}
-
-// Overlay schließen wenn man daneben tippt
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('overlay-bg')) {
-    closeOverlay(e.target.id);
-  }
-});
-
-// Verhindert horizontales Swipen auf dem ganzen Dokument
-document.addEventListener('touchstart', e => {
-  if (document.querySelector('.overlay-bg.open')) {
-    // Wenn Sheet offen: nur vertikales Scrollen im Sheet erlauben
-    const sheet = e.target.closest('.sheet');
-    if (!sheet) e.preventDefault();
-  }
-}, { passive: false });
-
-// ===== DATUM AUF STARTSCREEN =====
+// ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   const dateStr = formatDate(now);
-  document.getElementById('dashDate')?.setAttribute('textContent', dateStr);
   if (document.getElementById('dashDate')) document.getElementById('dashDate').textContent = dateStr;
   if (document.getElementById('zeitDate')) document.getElementById('zeitDate').textContent = dateStr;
-
-  // Startscreen laden
   navigate('dashboard');
 });
