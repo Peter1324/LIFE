@@ -24,66 +24,31 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => navigate(btn.dataset.screen));
 });
 
-// ===== GLOBALES OVERLAY SYSTEM =====
-// Jedes Overlay egal ob .overlay-bg oder eigene div läuft hier durch
-// Nav-Bar wird immer ausgeblendet wenn irgendwas offen ist
+// ===== OVERLAY SYSTEM =====
+// Nav-Bar hat z-index:50, alle Overlays haben z-index:9999+
+// Overlays liegen IMMER über der Nav — kein show/hide nötig
 
-function navHide() {
-  const nav = document.querySelector('.bottom-nav');
-  if (nav) nav.style.setProperty('display', 'none', 'important');
-}
-
-function navShow() {
-  const nav = document.querySelector('.bottom-nav');
-  if (nav) nav.style.removeProperty('display');
-}
-
-function anyOverlayOpen() {
-  // Prüft sowohl .overlay-bg.open als auch custom z-index Overlays im Zeittracker
-  const classOpen = document.querySelector('.overlay-bg.open');
-  const styleOpen = ['zStopOverlay','zStartOverlay','zCustomOverlay','zEntryOverlay']
-    .some(id => {
-      const el = document.getElementById(id);
-      return el && el.style.display === 'flex';
-    });
-  const gtdOpen = ['gNewItemOverlay','gNewProjectOverlay','gItemSheet','gMoveSheet']
-    .some(id => document.getElementById(id)?.classList.contains('open'));
-  const gymOpen = ['gymExercisePicker','gymSetSheet']
-    .some(id => document.getElementById(id)?.classList.contains('open'));
-  return classOpen || styleOpen || gtdOpen || gymOpen;
-}
-
-// Für .overlay-bg Klassen (GTD, Gym etc.)
 function openOverlay(id) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.add('open');
-  navHide();
+  if (el) el.classList.add('open');
 }
 
 function closeOverlay(id) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove('open');
-  setTimeout(() => { if (!anyOverlayOpen()) navShow(); }, 50);
+  if (el) el.classList.remove('open');
 }
 
-// Für Zeittracker custom Overlays (display:flex)
 function zShowOverlay(id) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = 'flex';
-  navHide();
+  if (el) el.style.display = 'flex';
 }
 
 function zHideOverlay(id) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = 'none';
-  setTimeout(() => { if (!anyOverlayOpen()) navShow(); }, 50);
+  if (el) el.style.display = 'none';
 }
 
-// Schließen wenn daneben getippt
+// Schließen wenn neben Sheet getippt
 document.addEventListener('click', e => {
   if (e.target.classList.contains('overlay-bg')) closeOverlay(e.target.id);
 });
@@ -118,8 +83,7 @@ function formatDateShort(date) {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
-  const dateStr = formatDate(now);
-  if (document.getElementById('dashDate')) document.getElementById('dashDate').textContent = dateStr;
-  if (document.getElementById('zeitDate')) document.getElementById('zeitDate').textContent = dateStr;
+  if (document.getElementById('dashDate')) document.getElementById('dashDate').textContent = formatDate(now);
+  if (document.getElementById('zeitDate')) document.getElementById('zeitDate').textContent = formatDate(now);
   navigate('dashboard');
 });
