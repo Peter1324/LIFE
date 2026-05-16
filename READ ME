@@ -7,15 +7,15 @@
 
 ## Was ist das?
 
-Eine persönliche Web-App die als iPhone-Homescreen-App läuft. Ziel: eine einzige Zentrale für Zeittracking, Aufgabenplanung, Gym-Fortschritt und Tagesstruktur. Später soll daraus eine echte iPhone-App (React Native) werden.
+Eine persönliche Web-App die als iPhone-Homescreen-App läuft. Ziel: eine einzige Zentrale für Zeittracking, Aufgabenplanung (GTD), Gym-Fortschritt und Tagesstruktur. Später soll daraus eine echte iPhone-App (React Native) werden.
 
 ---
 
 ## Tech Stack
 
 - **Frontend:** HTML + CSS + Vanilla JavaScript (mehrere Dateien, modular)
-- **Datenbank:** Supabase (kostenlos, Cloud, Daten gehen nie verloren)
-- **Hosting:** GitHub Pages (kostenlos, immer online)
+- **Datenbank:** localStorage (Supabase vorbereitet aber noch nicht aktiv)
+- **Hosting:** GitHub Pages
 - **Später:** React Native für echte iPhone-App mit Push-Benachrichtigungen
 
 ---
@@ -24,155 +24,193 @@ Eine persönliche Web-App die als iPhone-Homescreen-App läuft. Ziel: eine einzi
 
 ```
 /
-├── index.html          → Grundgerüst, Navigation, lädt alle anderen Dateien
-├── style.css           → Komplettes Design (dunkles Theme, gedeckte Farben)
-├── db.js               → Alles was mit Supabase redet (Daten lesen/schreiben)
-├── zeittracker.js      → Zeittracking (30-Min Slots, Check-In Flow)
-├── gtd.js              → GTD-System (Inbox, Projekte, Next Actions, etc.)
-├── gym.js              → Gym Tracker (Übungen, Gewichte, Diagramme)
-├── dashboard.js        → Übersichten und Statistiken
+├── index.html          → Grundgerüst, 5 Tabs, lädt alle anderen Dateien
+├── style.css           → Komplettes Design-System (Variablen, Buttons, Karten, Overlays)
+├── app.js              → Navigation zwischen Tabs, Toast, globale Hilfsfunktionen
+├── db.js               → Datenbankschicht — alle Daten laufen hier durch (localStorage, Supabase vorbereitet)
+├── zeittracker.js      → Zeittracker Modul (vollständig)
+├── gtd.js              → GTD-System Modul (vollständig)
+├── gym.js              → Gym Tracker Modul (vollständig)
+├── dashboard.js        → Dashboard + Statistiken (vollständig)
 └── README.md           → Diese Datei
 ```
-
-**Wichtig:** Jede Datei ist unabhängig. Ein Fehler in gym.js bricht nicht gtd.js.
 
 ---
 
 ## Navigation (5 Tabs unten)
 
-| Tab | Icon | Datei |
-|-----|------|-------|
-| Dashboard | 🏠 | dashboard.js |
-| Aufgaben (GTD) | ✅ | gtd.js |
-| Zeittracker | ⏱ | zeittracker.js |
-| Gym | 💪 | gym.js |
-| Statistiken | 📊 | dashboard.js |
+| Tab | Icon | Datei | Status |
+|-----|------|-------|--------|
+| Dashboard | 🏠 | dashboard.js | ✅ Fertig |
+| Aufgaben (GTD) | ✅ | gtd.js | ✅ Fertig |
+| Zeittracker | ⏱ | zeittracker.js | ✅ Fertig |
+| Gym | 💪 | gym.js | ✅ Fertig |
+| Statistiken | 📊 | dashboard.js | ✅ Fertig |
 
 ---
 
 ## Module im Detail
 
-### 1. Zeittracker (`zeittracker.js`) — FERTIG als Standalone
-Bereits gebaut als separate App. Wird hier integriert.
+### 1. Zeittracker (`zeittracker.js`) ✅ FERTIG
 
-**Features:**
 - 30-Minuten Slots, ganzer Tag 00:00–23:59
-- Automatischer Countdown zum nächsten Check-In
-- Mehrere Aktivitäten pro Slot mit Minuten-Aufteilung (1-Min Schritte, Slider mit Sperr-Funktion)
+- Automatischer Countdown zum nächsten Check-In (keine manuellen Starts)
+- Mehrere Aktivitäten pro Slot mit Minuten-Aufteilung (1-Min Schritte)
+- Slider mit Sperr-Funktion 🔒 gegen versehentliches Verstellen
 - Fragen pro Aktivität: Wichtig? Ziel-fit? Geplant/Reaktiv?
-- Kalenderansicht mit Tagesnavigation (‹ ›)
-- Slot antippen → Bearbeiten oder Löschen
-- Leere Slots nachträglich ausfüllen
-- Export als CSV
+- Kalenderansicht mit Tagesnavigation (‹ ›), 00:00–23:59
+- Slot antippen → Bearbeiten oder Löschen (Action Sheet)
+- Leere Slots nachträglich ausfüllen (direkt im Kalender antippen)
 - Rückwirkende Slot-Zuweisung (um 19:32 → landet bei 19:00–19:30)
+- Mini-Vorschau auf der Startseite
+- Export als CSV
+- Alle Daten über `DB.zeit` gespeichert
 
-**Aktivitäten mit Farben:**
-Tiefarbeit (olivgrün), E-Mails (stahlblau), Meeting (goldgelb), Handy/Social (dunkelrot), Admin/Orga (lila), Pause (terrakotta), Lernen (mintgrün), Gespräch (braun), Schlafen (dunkelblau), Sport (pink)
+**Aktivitäten & Farben (gedeckt, kein Neon):**
+Tiefarbeit (#7a9e5a), E-Mails (#5a8aae), Meeting (#ae9a5a), Handy/Social (#ae5a5a), Admin/Orga (#7a5aae), Pause (#ae7a5a), Lernen (#5aae8a), Gespräch (#ae6a5a), Schlafen (#5a6aae), Sport (#ae5a8a)
 
 ---
 
-### 2. GTD-System (`gtd.js`) — NOCH NICHT GEBAUT
+### 2. GTD-System (`gtd.js`) ✅ FERTIG
 
 Basiert auf "Getting Things Done" von David Allen.
 
-**Ordner/Bereiche:**
+**6 Ordner:**
 - **Inbox** — alles erstmal rein, Gehirn freihalten
-- **Next Actions** — konkrete nächste Schritte (als Aktion formuliert: "PC öffnen und Skript schreiben", nicht "Ad fertigmachen")
-- **Projekte** — alles was mehr als eine Aktion braucht. Jedes Projekt hat eigene Next Actions.
-- **Someday/Maybe** — irgendwann vielleicht (z.B. "Buch lesen")
-- **Waiting For** — warte auf Antwort von jemandem
-- **Kalender** — termingebundene Aufgaben
+- **Next Actions** — konkrete nächste Schritte (mit ABCD-Priorität + Projekt-Zuordnung)
+- **Projekte** — mehrstufige Aufgaben, eigene Detail-Ansicht mit Next Actions pro Projekt
+- **Someday/Maybe** — irgendwann vielleicht
+- **Waiting For** — warte auf Person/Firma (eigenes Feld)
+- **Kalender** — termingebundene Aufgaben (mit Datumsfeld)
 
-**Zusatz: ABCD-Framework für Tagesplanung:**
-- A = muss heute erledigt werden
-- B = sollte heute, aber nicht kritisch
-- C = delegieren
-- D = irgendwann, nebenbei
+**ABCD-Framework:**
+- A = muss heute (rot)
+- B = sollte heute (gold)
+- C = delegieren (blau)
+- D = irgendwann (grau)
 
-**Tagesplanung:**
-- Jeden Abend den nächsten Tag planen
-- Aufgaben aus GTD-Ordnern in den Tag ziehen
-- ABCD-Priorität per Tap setzen
+**Tagesplan:**
+- Eigene Ansicht, Aufgaben aus Next Actions per Tap hinzufügen
+- Gruppiert nach ABCD-Priorität
+- Checkboxen zum Abhaken, erledigte bleiben sichtbar
+
+**Item-Aktionen:** Antippen → Sheet → Bearbeiten, Löschen, In anderen Ordner verschieben
 
 ---
 
-### 3. Gym Tracker (`gym.js`) — NOCH NICHT GEBAUT
+### 3. Gym Tracker (`gym.js`) ✅ FERTIG
+
+Freestyle — beliebige Übungen, variiert täglich.
 
 **Features:**
-- Eigene Übungen hinzufügen
-- Pro Training: Übung + Gewicht + Wiederholungen eintragen
-- Verlaufsdiagramm pro Übung (Gewicht über Zeit)
-- Ziel: sehen wie man stärker wird
+- Training starten → Übungen hinzufügen (Schnellauswahl aus vergangenen Sessions oder neue eingeben)
+- Pro Übung: Sätze + Wiederholungen + Gewicht eintragen
+- Vergleich mit letztem Mal direkt beim Eintragen sichtbar
+- 📈 📉 ➡️ Icons zeigen ob man sich verbessert hat
+- Verlaufsgrafik pro Übung (alle Einträge chronologisch)
+- Persönliche Bestleistungen auf der Startseite
+- Trainingshistorie mit allen Sessions
+- Alle Daten über `DB.gym` gespeichert
 
 ---
 
-### 4. Dashboard (`dashboard.js`) — NOCH NICHT GEBAUT
+### 4. Dashboard (`dashboard.js`) ✅ FERTIG
 
-**Features:**
-- Monatsübersicht: wie produktiv war ich?
-- Zeittracker-Statistiken (meiste Aktivität, % wichtig, % geplant)
-- Gym-Fortschritt auf einen Blick
-- Später: KI-Abend-Check-In per Sprache (Anthropic API)
+**Dashboard-Tab:**
+- Tageszeit-Begrüßung (Morgen/Tag/Abend/Nacht)
+- Tagesplan-Vorschau (GTD Today-Items mit Checkboxen)
+- Zeittracker heute (Farbbalken + Top-Aktivitäten)
+- Gym heute (Übungen & Sätze oder "kein Training")
+- Inbox-Warnung wenn zu viel angestaut
+- Woche im Überblick (7-Tage Balkendiagramm, Gym-Tage markiert)
+
+**Statistiken-Tab:**
+- Zeitraum wählbar: Woche / Monat / Gesamt
+- Zeittracker: Stunden getrackt, % wichtig, % geplant, Aufschlüsselung nach Aktivität
+- GTD: Erledigte Aufgaben, Inbox-Stand, aktive Projekte
+- Gym: Trainings, Übungen, Sätze, beste Gewichte im Zeitraum
+- Export-Buttons (komplettes Backup JSON + CSV Zeittracker)
 
 ---
 
-## Design-System
+## Design-System (`style.css`)
 
 ```css
---bg: #0f0f0f          /* Hintergrund */
---surface: #181818     /* Karten */
---surface2: #202020    /* Inputs */
---accent: #a8c060      /* Hauptfarbe (gedecktes Olivgrün) */
---text: #e8e4dc        /* Text */
---muted: #505050       /* Grau */
---danger: #c04040      /* Rot für Löschen */
---border: #282828      /* Rahmen */
+--bg:       #0f0f0f   /* Hintergrund */
+--surface:  #181818   /* Karten */
+--surface2: #202020   /* Inputs, sekundäre Flächen */
+--surface3: #282828   /* Tertiär */
+--accent:   #a8c060   /* Hauptfarbe (gedecktes Olivgrün) */
+--accent2:  #c0a060   /* Sekundärfarbe */
+--text:     #e8e4dc   /* Text */
+--muted:    #505050   /* Grau / inaktiv */
+--danger:   #c04040   /* Rot für Löschen/Warnungen */
+--border:   #282828   /* Rahmen */
 ```
 
-Schriften: Syne (Überschriften, fett) + DM Mono (alles andere)
+Schriften: **Syne** (Überschriften, fett) + **DM Mono** (alles andere)
+
+Wiederverwendbare Klassen: `.card`, `.btn`, `.btn-primary`, `.btn-ghost`, `.btn-danger`, `.btn-icon`, `.input`, `.chip`, `.sheet`, `.overlay-bg`, `.stat-cell`, `.stat-grid`, `.empty-state`
 
 ---
 
-## Supabase Datenbank
+## Datenbankschicht (`db.js`)
 
-**Tabellen geplant:**
+Alle Daten laufen durch `DB` — kein Modul schreibt direkt in localStorage.
 
-| Tabelle | Inhalt |
-|---------|--------|
-| `time_entries` | Zeittracker-Einträge (slotTs, activities als JSON) |
-| `gtd_items` | Alle GTD-Aufgaben (folder, title, priority, project_id) |
-| `projects` | GTD-Projekte |
-| `gym_sessions` | Trainingseinheiten |
-| `gym_exercises` | Übungen mit Gewicht/Wiederholungen |
+```javascript
+DB.zeit.getEntries()          // Alle Zeiteinträge
+DB.zeit.addEntry(entry)       // Eintrag hinzufügen/updaten
+DB.zeit.deleteEntry(slotTs)   // Eintrag löschen
+
+DB.gtd.getItems()             // Alle GTD-Items
+DB.gtd.addItem(item)          // Item hinzufügen
+DB.gtd.updateItem(id, updates)// Item updaten
+DB.gtd.deleteItem(id)         // Item löschen
+DB.gtd.getProjects()          // Alle Projekte
+DB.gtd.addProject(project)    // Projekt hinzufügen
+
+DB.gym.getSessions()          // Alle Trainings
+DB.gym.saveSessions(sessions) // Trainings speichern
+DB.gym.addSession(session)    // Training hinzufügen
+
+DB.exportAll()                // Komplettes Backup als JSON
+```
+
+**Supabase anbinden:** In `db.js` oben `SUPABASE_READY = true` setzen und URL/Key eintragen. Dann alle Methoden auf Supabase-Calls umstellen — der Rest der App ändert sich nicht.
 
 ---
 
 ## Bauplan (Reihenfolge)
 
 - [x] **Phase 0** — Zeittracker als Standalone (fertig)
-- [ ] **Phase 1** — Grundgerüst: index.html + Navigation + style.css + db.js
-- [ ] **Phase 2** — Zeittracker integrieren
-- [ ] **Phase 3** — GTD-System (Inbox, Next Actions, Projekte, ABCD)
-- [ ] **Phase 4** — Gym Tracker
-- [ ] **Phase 5** — Dashboard + Statistiken
-- [ ] **Phase 6** — Supabase anbinden (Daten in Cloud)
-- [ ] **Phase 7** — PWA (Manifest + Service Worker, offline nutzbar)
-- [ ] **Später** — React Native iPhone-App
+- [x] **Phase 1** — Grundgerüst: index.html + Navigation + style.css + db.js + app.js
+- [x] **Phase 2** — Zeittracker als Modul integriert
+- [x] **Phase 3** — GTD-System (Inbox, Next Actions, Projekte, ABCD, Tagesplan)
+- [x] **Phase 4** — Gym Tracker (Freestyle, Sätze/Wdh/Gewicht, Verlauf, Bestleistungen)
+- [x] **Phase 5** — Dashboard + Statistiken (7-Tage Übersicht, Zeitraum-Auswahl)
+- [ ] **Phase 6** — Supabase anbinden (Daten in Cloud, geräteübergreifend)
+- [ ] **Phase 7** — PWA (Manifest + Service Worker, offline + Homescreen-Icon)
+- [ ] **Später** — React Native iPhone-App mit echten Push-Benachrichtigungen
+
+---
+
+## Offene Punkte / Nächste Schritte
+
+- **Supabase:** Account vorhanden, noch nicht angebunden. Wenn bereit: `SUPABASE_READY = true` in db.js + URL/Key eintragen.
+- **PWA:** manifest.json + service-worker.js noch nicht erstellt. Danach läuft die App offline und hat ein echtes Homescreen-Icon.
+- **KI-Abend-Check-In per Sprache:** Geplant für später (Anthropic API). Abends per Sprache einsprechen, KI trägt alles ein.
+- **Mood Tracker:** Optional, könnte ins Dashboard integriert werden.
+- **Habit Tracker:** Zweitrangig, eigene App vorhanden.
 
 ---
 
 ## Wie man einen neuen Claude-Chat startet
 
-1. Diese README.md öffnen
+1. Diese README.md öffnen auf GitHub
 2. Kompletten Inhalt kopieren
-3. In neuen Chat einfügen mit dem Text: *"Das ist mein Life OS Projekt. Hier ist die README:"*
-4. Claude weiß sofort was gebaut wurde, was noch fehlt und wie alles strukturiert ist.
+3. In neuen Chat einfügen mit: *"Das ist mein Life OS Projekt. Hier ist die README:"*
+4. Dann die relevante Datei dazukopieren an der gearbeitet werden soll
+5. Claude weiß sofort was gebaut wurde, was noch fehlt und wie alles strukturiert ist
 
----
-
-## Offene Entscheidungen
-
-- Supabase: Account existiert, noch nicht angebunden
-- KI-Abend-Check-In per Sprache: später, nach Phase 5
-- Mood Tracker: optional, kann in Dashboard integriert werden
-- Habit Tracker: zweitrangig, eigene App vorhanden
+**Tipp:** Wenn du an einem bestimmten Modul arbeitest, kopiere zusätzlich den Code dieser Datei rein. Zum Beispiel wenn du gtd.js ändern willst: README + gtd.js reinkopieren.
